@@ -1,5 +1,6 @@
 'use strict';
-const APP_VERSION='1.0.0';
+const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
+const APP_VERSION='1.1.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -17,6 +18,15 @@ function fmtDate(s,withHijri=true){if(!s)return'—';const d=parseD(s);if(isNaN(
   let h='';try{h=d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{year:'numeric',month:'short',day:'numeric'})}catch(e){}
   return g+(h?' <span class="muted small">('+h+')</span>':'')}
 function fmtPlain(s){if(!s)return'';const d=parseD(s);if(isNaN(d))return s;let h='';try{h=d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){}return s+(h?' ('+h+')':'')}
+
+/* ---------- Feminine labels for girls' schools ---------- */
+const FEM=[['قائد/مدير','قائدة/مديرة'],['قائد المدرسة','قائدة المدرسة'],['مدير المدرسة','مديرة المدرسة'],['المعلمين','المعلمات'],['معلمين','معلمات'],['للمعلمين','للمعلمات'],['المعلم','المعلمة'],['معلم','معلمة'],['الطلاب','الطالبات'],['للطلاب','للطالبات'],['طلاب','طالبات'],['الطالب','الطالبة'],['طالب','طالبة'],['المتفوقين','المتفوقات'],['الموجه الطلابي','الموجهة الطلابية'],['رائد النشاط','رائدة النشاط'],['المكرَّم','المكرَّمة'],['المكلف','المكلفة'],['الوكلاء','الوكيلات'],['المحتاجين','المحتاجات'],['منسوبين','منسوبات'],['المنسوبين','المنسوبات'],['إداري','إدارية']];
+const FEMRX=FEM.map(([a,b])=>[new RegExp('(?<![\u0600-\u06FF])'+a.replace('/','\\/')+'(?![\u0600-\u06FF])','g'),b]);
+const isGirls=()=>DB&&DB.settings.gender==='بنات';
+const fem=h=>{if(!isGirls())return h;FEMRX.forEach(([r,b])=>h=h.replace(r,b));return h};
+const STAGES=['ابتدائي','متوسط','ثانوي'];
+const schoolMeta=()=>{const s=DB.settings;return [s.stages&&s.stages.length?'المرحلة: '+s.stages.join(' / '):'',s.gender?'مدرسة '+s.gender:''].filter(Boolean).join(' — ')};
+const leaderLbl=()=>isGirls()?'قائدة المدرسة':'قائد المدرسة';
 
 /* ---------- Schemas ---------- */
 const ST_TASK=['جديدة','قيد التنفيذ','مكتملة','مؤجلة'];
@@ -142,7 +152,7 @@ const REVIEW={
 
 /* ---------- Store ---------- */
 const COLS=Object.keys(S);
-function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
+function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true,stages:[],gender:'',setupDone:false},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
 let DB;
 function load(){try{const r=localStorage.getItem(KEY);DB=r?normalize(JSON.parse(r)):blank()}catch(e){console.warn(e);DB=blank()}}
 function normalize(d){const b=blank();if(!d||typeof d!=='object')return b;
@@ -175,12 +185,12 @@ function openForm(c,item,onSaved){const sc=S[c],isNew=!item;item=item||{};
  const f=$('#dlgForm');
  f.innerHTML=`<div class="dlg-h"><span>${isNew?'إضافة':'تعديل'} ${sc.one}</span><button type="button" class="iconbtn" data-x aria-label="إغلاق">✕</button></div><div class="dlg-b">`+
  sc.f.map(x=>{let v=item[x.k];if(v==null&&isNew){v=x.def==='today'?today():x.def??''}if(v==null)v='';const id='f_'+x.k;const req=x.req?' <span class="req">*</span>':'';
-  let inp;if(x.type==='select')inp=`<select id="${id}" name="${x.k}">${x.req&&!v?'<option value="">— اختر —</option>':''}${x.opts.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  let inp;if(x.type==='select')inp=`<select id="${id}" name="${x.k}">${x.req&&!v?'<option value="">— اختر —</option>':''}${x.opts.map(o=>`<option ${fem(o)===fem(String(v))?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
   else if(x.type==='textarea')inp=`<textarea id="${id}" name="${x.k}" maxlength="5000">${esc(v)}</textarea>`;
   else inp=`<input id="${id}" name="${x.k}" type="${x.type||'text'}" value="${esc(v)}" ${x.min!=null?`min="${x.min}"`:''} ${x.max!=null&&x.type==='number'?`max="${x.max}"`:''} maxlength="${x.max&&x.type!=='number'?x.max:300}" ${x.ph?`placeholder="${esc(x.ph)}"`:''} ${x.type==='number'?'inputmode="numeric" step="1"':''}>`;
   return `<div class="fld ${x.full?'full':''}"><label for="${id}">${esc(x.l)}${req}</label>${inp}<span class="err" id="e_${x.k}"></span></div>`}).join('')+
  `</div><div class="dlg-f"><button class="btn gold" value="ok" type="submit">حفظ (Ctrl+Enter)</button><button type="button" class="btn ghost" data-x>إلغاء</button>${!isNew?'<button type="button" class="btn red" data-del style="margin-inline-start:auto">حذف</button>':''}</div>`;
- const dlg=$('#dlg');
+ f.innerHTML=fem(f.innerHTML);const dlg=$('#dlg');
  f.onsubmit=e=>{e.preventDefault();const data={};let ok=true;
   sc.f.forEach(x=>{const el=f.elements[x.k];let v=el.value.trim();const fe=$('#e_'+x.k);let err='';
    if(x.req&&v==='')err='هذا الحقل مطلوب';
@@ -247,7 +257,7 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  const up=[...DB.events.filter(x=>x.date>=t&&x.date<=soon&&x.status!=='ملغى').map(x=>({...x,_k:'مناسبة'})),...DB.activities.filter(x=>x.date>=t&&x.date<=soon&&x.status!=='ملغى').map(x=>({...x,_k:'نشاط'}))].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
  const dueList=DB.tasks.filter(x=>x.status!=='مكتملة'&&x.due&&x.due<=addDays(t,7)).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
  const empty=!COLS.some(c=>DB[c].length);
- return `<div class="head"><div><h2>${esc(DB.settings.school||'لوحة قيادة المدرسة')}</h2><div class="muted small">${DB.settings.principal?'قائد المدرسة: '+esc(DB.settings.principal)+' — ':''}${fmtDate(t)}</div></div>
+ return `<div class="head"><div><h2>${esc(DB.settings.school||'لوحة قيادة المدرسة')}</h2><div class="muted small">${DB.settings.principal?esc(leaderLbl())+': '+esc(DB.settings.principal)+' — ':''}${schoolMeta()?esc(schoolMeta())+' — ':''}${fmtDate(t)}</div></div>
  <div class="btns"><button class="btn gold" data-act="add" data-c="tasks">＋ مهمة</button><button class="btn ghost" data-act="add" data-c="attendance">＋ حضور اليوم</button><button class="btn ghost" data-act="add" data-c="visits">＋ زيارة</button><button class="btn ghost" data-act="weekly">التقرير الأسبوعي</button></div></div>
  ${empty?`<div class="card"><h3>مرحباً بك 👋</h3><p class="muted">لا توجد بيانات بعد. ابدأ من <a href="#settings">الإعدادات</a> بإدخال اسم المدرسة والشعار، ثم أضف المهام من <a href="#templates">القوالب الجاهزة</a> وسجّل الحضور والزيارات. بياناتك محفوظة على هذا الجهاز فقط — صدّر نسخة احتياطية دورياً. يمكنك أيضاً تحميل <b>بيانات تجريبية</b> معلَّمة للتعرّف على اللوحة ثم حذفها.</p><button class="btn ghost" data-act="sample">تحميل بيانات تجريبية</button></div>`:''}
  <div class="grid kpis">
@@ -291,6 +301,7 @@ function settingsView(){const s=DB.settings,used=(new Blob([JSON.stringify(DB)])
  return `<div class="head"><div><h2>الإعدادات والنسخ الاحتياطي</h2></div></div>
  <div class="grid two"><div class="card"><h3>بيانات المدرسة</h3><form id="setForm" novalidate>
  ${[['school','اسم المدرسة'],['principal','اسم قائد/مدير المدرسة'],['region','إدارة التعليم / المكتب'],['year','العام الدراسي']].map(([k,l])=>`<div class="fld" style="margin-bottom:10px"><label for="s_${k}">${l}</label><input id="s_${k}" name="${k}" value="${esc(s[k])}" maxlength="120"></div>`).join('')}
+${stageGenderFields(s)}
  <div class="fld" style="margin-bottom:10px"><label>الشعار</label><div class="row">${s.logo?`<img src="${s.logo}" alt="الشعار" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--line);border-radius:8px">`:'<span class="muted small">لا يوجد شعار</span>'}<button type="button" class="btn sm ghost" data-act="logo">رفع شعار</button>${s.logo?'<button type="button" class="btn sm ghost" data-act="nologo">إزالة</button>':''}</div></div>
  <button class="btn gold" type="submit">حفظ الإعدادات</button></form></div>
  <div class="card"><h3>التذكيرات والعرض</h3>
@@ -303,7 +314,7 @@ function settingsView(){const s=DB.settings,used=(new Blob([JSON.stringify(DB)])
  <div class="btns"><button class="btn gold" data-act="export">تصدير نسخة احتياطية JSON</button><button class="btn ghost" data-act="import">استيراد نسخة احتياطية</button></div></div>
  <div class="card"><h3>البيانات التجريبية والتهيئة</h3><p class="small muted">البيانات التجريبية معلَّمة بشارة «تجريبي» وتظهر لافتة تنبيه أثناء وجودها، ويمكن حذفها بضغطة.</p>
  <div class="btns"><button class="btn ghost" data-act="sample">تحميل بيانات تجريبية</button><button class="btn ghost" data-act="clearSample">حذف البيانات التجريبية</button><button class="btn red" data-act="wipe">مسح كل البيانات</button></div></div></div>
- <div class="card small muted">الإصدار ${APP_VERSION} — يعمل دون اتصال بعد أول تحميل، ويمكن تثبيته من قائمة المتصفح «تثبيت التطبيق / إضافة إلى الشاشة الرئيسية». <button class="btn sm ghost" data-act="install" id="instBtn" hidden>تثبيت التطبيق</button></div>`}
+ <div class="card small muted"><b style="color:var(--text)">${CREDIT}</b><br>الإصدار ${APP_VERSION} — يعمل دون اتصال بعد أول تحميل، ويمكن تثبيته من قائمة المتصفح «تثبيت التطبيق / إضافة إلى الشاشة الرئيسية». <button class="btn sm ghost" data-act="install" id="instBtn" hidden>تثبيت التطبيق</button></div>`}
 
 function searchView(q){const ql=q.toLowerCase();let out='',n=0;
  COLS.forEach(c=>{const r=DB[c].filter(x=>Object.entries(x).some(([k,v])=>k!=='id'&&typeof v!=='object'&&String(v).toLowerCase().includes(ql)));if(r.length){n+=r.length;out+=`<div class="card"><h3>${S[c].t} (${r.length})</h3>${table(c,r.slice(0,50),S[c].cols,q)}</div>`}});
@@ -317,11 +328,11 @@ function render(){const v=view(),m=$('#main');
  if(searchQ)m.innerHTML=searchView(searchQ);
  else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v])m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
  else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='settings')m.innerHTML=settingsView();else m.innerHTML=dashboard();
- chrome()}
-function chrome(){const s=DB.settings;$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
+ m.innerHTML=fem(m.innerHTML);chrome()}
+let NAV0;function chrome(){const s=DB.settings;$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';NAV0=NAV0||$('#nav').innerHTML;const nv=fem(NAV0);if($('#nav').dataset.g!==String(s.gender)){$('#nav').innerHTML=nv;$('#nav').dataset.g=s.gender}$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view()));document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
  const lg=$('#topLogo');if(s.logo){lg.src=s.logo;lg.hidden=false}else lg.hidden=true;
  $('#sampleBar').hidden=!hasSample();const o=DB.tasks.filter(x=>isOver('tasks',x)).length;$('#navOver').hidden=!o;$('#navOver').textContent=o;
- $('#todayDate').innerHTML=fmtDate(today(),s.hijri);$('#verLbl').textContent='الإصدار '+APP_VERSION;
+ $('#todayDate').innerHTML=[s.principal?esc(leaderLbl()+': '+s.principal):'',esc(schoolMeta()),fmtDate(today(),s.hijri)].filter(Boolean).join(' — ');$('#verLbl').textContent='الإصدار '+APP_VERSION;
  const ib=$('#instBtn');if(ib)ib.hidden=!deferredInstall;bell(false)}
 
 /* ---------- Bell & reminders ---------- */
@@ -332,7 +343,7 @@ function bell(open){const list=dueTasks(),seen=DB.notified._seen||'';const unrea
  p.innerHTML=`<div class="row"><b class="grow">المهام المستحقة والمتأخرة (${list.length})</b><button class="iconbtn" style="background:var(--soft);color:var(--text)" data-act="bellclose" aria-label="إغلاق">✕</button></div>`+
  (list.length?PERIODS.map(pr=>{const a=list.filter(x=>x.period===pr);return a.length?`<h4>${pr}</h4>`+a.map(x=>`<div class="it"><span>${esc(x.title)}</span><span>${x.due<today()?'<span class="pill red">متأخرة</span>':'<span class="pill amber">اليوم</span>'} <button class="btn sm gold" data-act="done" data-c="tasks" data-id="${x.id}" aria-label="إنجاز">✓</button></span></div>`).join(''):''}).join(''):'<div class="empty">لا توجد تنبيهات 🎉</div>')+
  `<p class="small muted">تعمل التذكيرات أثناء فتح التطبيق أو تشغيله مثبّتاً. ${'Notification' in window&&Notification.permission!=='granted'?'<button class="btn sm ghost" data-act="notif">تفعيل الإشعارات</button>':''}</p>`;
- p.hidden=false;DB.notified._seen=list.map(x=>x.id).join(',');save();b.hidden=true}
+ p.style.top=(document.querySelector('.top').getBoundingClientRect().bottom+6)+'px';p.hidden=false;DB.notified._seen=list.map(x=>x.id).join(',');save();b.hidden=true}
 let actx;const unlockAudio=()=>{try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}};['pointerdown','keydown'].forEach(ev=>addEventListener(ev,unlockAudio,{once:true,capture:true}));
 function chime(){if(DB.settings.mute||!actx)return;try{actx.resume();const t=actx.currentTime;
  [880,1318.5].forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t+i*.18);g.gain.linearRampToValueAtTime(.25,t+i*.18+.02);g.gain.exponentialRampToValueAtTime(.001,t+i*.18+.9);o.connect(g).connect(actx.destination);o.start(t+i*.18);o.stop(t+i*.18+1)})}catch(e){}}
@@ -361,9 +372,9 @@ function xls(cols){let x='<?xml version="1.0" encoding="UTF-8"?><?mso-applicatio
  download(`لوحة-قيادة-المدرسة-${today()}.xls`,x+'</Workbook>','application/vnd.ms-excel')}
 
 /* ---------- Print ---------- */
-function printHead(title,sub){const s=DB.settings;return `<div class="ph">${s.logo?`<img src="${s.logo}" alt="">`:''}<div><div style="font-size:11pt">المملكة العربية السعودية — وزارة التعليم${s.region?' — '+esc(s.region):''}</div><div style="font-weight:800;font-size:14pt">${esc(s.school||'')}</div><div style="font-size:10pt">${s.year?'العام الدراسي '+esc(s.year)+' — ':''}تاريخ الطباعة: ${fmtPlain(today())}</div></div></div><h2>${esc(title)}</h2>${sub?`<p>${sub}</p>`:''}${hasSample()?'<p style="color:#b45309"><b>تنبيه: يتضمن التقرير بيانات تجريبية للتوضيح فقط.</b></p>':''}`}
+function printHead(title,sub){const s=DB.settings;return `<div class="ph">${s.logo?`<img src="${s.logo}" alt="">`:''}<div><div style="font-size:11pt">المملكة العربية السعودية — وزارة التعليم${s.region?' — '+esc(s.region):''}</div><div style="font-weight:800;font-size:14pt">${esc(s.school||'')}</div><div style="font-size:10pt">${schoolMeta()?esc(schoolMeta())+' — ':''}${s.year?'العام الدراسي '+esc(s.year)+' — ':''}تاريخ الطباعة: ${fmtPlain(today())}</div></div></div><h2>${esc(title)}</h2>${sub?`<p>${sub}</p>`:''}${hasSample()?'<p style="color:#b45309"><b>تنبيه: يتضمن التقرير بيانات تجريبية للتوضيح فقط.</b></p>':''}`}
 function ptable(c,rows){const keys=S[c].cols;return rows.length?`<table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><thead><tr>${keys.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}</tr></thead><tbody>${rows.map(x=>`<tr>${keys.map(k=>`<td>${esc(plainVal(c,k,x))}${k===keys[0]&&x.sample?' (تجريبي)':''}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<p>لا توجد سجلات.</p>'}
-const sig=()=>`<div class="sig"><div>قائد المدرسة: ${esc(DB.settings.principal||'....................')}</div><div>التوقيع: ....................</div><div>الختم</div></div>`;
+const sig=()=>`<div class="sig"><div>${leaderLbl()}: ${esc(DB.settings.principal||'....................')}</div><div>التوقيع: ....................</div><div>الختم</div></div><div style="text-align:center;font-size:9pt;color:#555;margin-top:24px;border-top:1px solid #ccc;padding-top:6px">${CREDIT}</div>`;
 function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${from?fmtPlain(from):'…'} — ${to?fmtPlain(to):'…'}`:'';
  if(type==='weekly'){to=today();from=addDays(to,-6);const st=stats();h=printHead('التقرير الأسبوعي','الفترة: '+fmtPlain(from)+' — '+fmtPlain(to));
   const att=rowsFor('attendance',from,to),e=att.reduce((s,x)=>s+(+x.enrolled||0),0),a=att.reduce((s,x)=>s+(+x.absent||0),0);
@@ -378,7 +389,7 @@ function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${fr
  else if(type==='review'){h=printHead('المراجعة الذاتية','متوسط عام: '+(reviewPct()??'—')+(reviewPct()!=null?'%':''));
   DOMAINS.forEach(d=>{h+=`<section><h3>${d} — ${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المؤشر</th><th>التقدير</th><th>الشواهد</th></tr>${REVIEW[d].map((q,i)=>{const v=(DB.review[d]||{})[i]||{};return `<tr><td>${esc(q)}</td><td>${({2:'متحقق',1:'متحقق جزئياً',0:'غير متحقق'})[v.s]||'—'}</td><td>${esc(v.n||'')}</td></tr>`}).join('')}</table></section>`})}
  else if(S[type]){let r=rowsFor(type,from,to);h=printHead(S[type].t,range)+`<section>${ptable(type,r)}</section>`}
- $('#printArea').innerHTML=h+sig();setTimeout(()=>window.print(),50)}
+ $('#printArea').innerHTML=fem(h)+sig();setTimeout(()=>window.print(),50)}
 
 /* ---------- Sample data (clearly labeled) ---------- */
 function loadSample(){if(hasSample()&&!confirm('توجد بيانات تجريبية بالفعل. إضافة المزيد؟'))return;const t=today(),sm={sample:true};const P=(c,o)=>DB[c].push({id:uid(),...sm,...o});
@@ -406,6 +417,21 @@ async function importJSON(file){try{if(file.size>20e6)throw new Error('المل�
 function setLogo(file){if(!file||!/^image\//.test(file.type)){toast('اختر ملف صورة');return}const img=new Image(),u=URL.createObjectURL(file);
  img.onload=()=>{const m=256,r=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);DB.settings.logo=c.toDataURL('image/png');URL.revokeObjectURL(u);audit('تحديث الشعار','settings',{title:'الشعار'});save();render()};
  img.onerror=()=>toast('تعذّر قراءة الصورة');img.src=u}
+
+function stageGenderFields(s){return `<fieldset class="fld" style="margin-bottom:10px;border:1px solid var(--line);border-radius:10px"><legend>المرحلة الدراسية (يمكن اختيار أكثر من مرحلة للمجمّعات)</legend><div class="btns">${STAGES.map(x=>`<label><input type="checkbox" name="stage" value="${x}" ${(s.stages||[]).includes(x)?'checked':''}> ${x}</label>`).join('')}</div></fieldset>
+ <fieldset class="fld" style="margin-bottom:10px;border:1px solid var(--line);border-radius:10px"><legend>نوع المدرسة</legend><div class="btns">${['بنين','بنات'].map(x=>`<label><input type="radio" name="gender" value="${x}" ${s.gender===x?'checked':''}> ${x}</label>`).join('')}</div><span class="small muted">عند اختيار «بنات» تتحول المسميات إلى صيغة المؤنث (قائدة المدرسة، المعلمات، الطالبات).</span></fieldset>`}
+function readSG(f){DB.settings.stages=$$('input[name=stage]:checked',f).map(x=>x.value).filter(x=>STAGES.includes(x));const g=$('input[name=gender]:checked',f);DB.settings.gender=g&&['بنين','بنات'].includes(g.value)?g.value:''}
+function setupWizard(){const f=$('#dlgForm'),s=DB.settings;
+ f.innerHTML=`<div class="dlg-h"><span>مرحباً — إعداد المدرسة لأول مرة</span></div><div class="dlg-b" style="grid-template-columns:1fr">
+ <p class="small muted" style="margin:0">أدخل بيانات مدرستك (يمكن تعديلها لاحقاً من الإعدادات). تُحفظ البيانات على هذا الجهاز فقط.</p>
+ <div class="fld"><label for="w_school">اسم المدرسة <span class="req">*</span></label><input id="w_school" name="school" maxlength="120" value="${esc(s.school)}"><span class="err" id="we_school"></span></div>
+ <div class="fld"><label for="w_principal">اسم قائد/قائدة المدرسة</label><input id="w_principal" name="principal" maxlength="120" value="${esc(s.principal)}"></div>
+ ${stageGenderFields(s)}</div><div class="dlg-f"><button class="btn gold" type="submit">بدء الاستخدام</button><button class="btn ghost" type="button" data-skip>تخطي الآن</button></div>`;
+ const dlg=$('#dlg');
+ f.onsubmit=e=>{e.preventDefault();const sc=f.elements.school.value.trim();if(!sc){$('#we_school').textContent='اسم المدرسة مطلوب';f.elements.school.focus();return}
+  s.school=sc.slice(0,120);s.principal=f.elements.principal.value.trim().slice(0,120);readSG(f);s.setupDone=true;audit('الإعداد الأولي','settings',{title:s.school});save();dlg.close();render();toast('تم حفظ بيانات المدرسة')};
+ f.onkeydown=null;$('[data-skip]',f).onclick=()=>{s.setupDone=true;save();dlg.close()};
+ dlg.showModal();setTimeout(()=>f.elements.school.focus(),30)}
 
 /* ---------- Event wiring ---------- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
@@ -447,7 +473,7 @@ document.addEventListener('change',e=>{const el=e.target;if(el.dataset.allp)$$(`
 document.addEventListener('click',e=>{const s=e.target.closest('[data-rv]');if(!s)return;const[d,i]=s.dataset.rv.split('|');DB.review[d]=DB.review[d]||{};const cur=DB.review[d][i]||{};
  DB.review[d][i]={...cur,s:cur.s===s.dataset.s?'':s.dataset.s};DB.review._date=today();audit('تقييم مؤشر','review',{title:d});save();
  const y=window.scrollY;render();window.scrollTo(0,y)});
-document.addEventListener('submit',e=>{if(e.target.id!=='setForm')return;e.preventDefault();const f=e.target;['school','principal','region','year'].forEach(k=>DB.settings[k]=f.elements[k].value.trim().slice(0,120));audit('تحديث الإعدادات','settings',{title:'بيانات المدرسة'});save();render();toast('حُفظت الإعدادات')});
+document.addEventListener('submit',e=>{if(e.target.id!=='setForm')return;e.preventDefault();const f=e.target;['school','principal','region','year'].forEach(k=>DB.settings[k]=f.elements[k].value.trim().slice(0,120));readSG(f);audit('تحديث الإعدادات','settings',{title:'بيانات المدرسة'});save();render();toast('حُفظت الإعدادات')});
 $('#fileIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&importJSON(f)};
 $('#logoIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&setLogo(f)};
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{searchQ=e.target.value.trim();render()},200)});
@@ -478,5 +504,6 @@ if('serviceWorker' in navigator&&location.protocol!=='file:'){
 }
 
 /* ---------- Init ---------- */
-load();setTheme(DB.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));net();render();
+load();if(!DB.settings.setupDone&&DB.settings.school)DB.settings.setupDone=true;setTheme(DB.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));net();render();
+if(!DB.settings.setupDone)setupWizard();
 setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
