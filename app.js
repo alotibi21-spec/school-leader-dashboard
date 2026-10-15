@@ -1,0 +1,482 @@
+'use strict';
+const APP_VERSION='1.0.0';
+const KEY='sld-data-v1';
+const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
+const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return iso(d)};
+const parseD=s=>new Date(s+'T00:00:00');
+function fmtDate(s,withHijri=true){if(!s)return'—';const d=parseD(s);if(isNaN(d))return esc(s);
+  const g=d.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{year:'numeric',month:'short',day:'numeric'});
+  if(!withHijri)return g;
+  let h='';try{h=d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{year:'numeric',month:'short',day:'numeric'})}catch(e){}
+  return g+(h?' <span class="muted small">('+h+')</span>':'')}
+function fmtPlain(s){if(!s)return'';const d=parseD(s);if(isNaN(d))return s;let h='';try{h=d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){}return s+(h?' ('+h+')':'')}
+
+/* ---------- Schemas ---------- */
+const ST_TASK=['جديدة','قيد التنفيذ','مكتملة','مؤجلة'];
+const S={
+ tasks:{t:'المهام',one:'مهمة',f:[
+  {k:'title',l:'عنوان المهمة',req:1,full:1,max:200},{k:'domain',l:'المجال',type:'select',opts:DOMAINS,req:1},{k:'period',l:'التكرار',type:'select',opts:PERIODS,req:1},
+  {k:'due',l:'تاريخ الاستحقاق',type:'date',req:1},{k:'priority',l:'الأولوية',type:'select',opts:['عالية','متوسطة','منخفضة'],def:'متوسطة'},
+  {k:'status',l:'الحالة',type:'select',opts:ST_TASK,def:'جديدة'},{k:'owner',l:'المسؤول',def:'مدير المدرسة'},{k:'recur',l:'التكرار التلقائي عند الإنجاز',type:'select',opts:['لا يتكرر','يومي','أسبوعي','شهري','فصلي'],def:'لا يتكرر'},{k:'remind',l:'وقت التذكير (اختياري)',type:'time'},{k:'notes',l:'ملاحظات/شواهد',type:'textarea',full:1}],
+  cols:['title','domain','period','due','priority','status'],date:'due'},
+ attendance:{t:'حضور الطلاب',one:'سجل حضور',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'cls',l:'الصف/الفصل',req:1,ph:'مثال: الأول المتوسط / 1'},
+  {k:'enrolled',l:'عدد المقيدين',type:'number',req:1,min:1},{k:'absent',l:'عدد الغائبين',type:'number',req:1,min:0},
+  {k:'late',l:'عدد المتأخرين',type:'number',min:0,def:0},{k:'excused',l:'غياب بعذر (من الغائبين)',type:'number',min:0,def:0},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['date','cls','enrolled','absent','late','rate'],date:'date'},
+ visits:{t:'الزيارات الصفية',one:'زيارة صفية',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'teacher',l:'المعلم',req:1},{k:'subject',l:'المادة',req:1},{k:'cls',l:'الصف/الفصل'},
+  {k:'type',l:'نوع الزيارة',type:'select',opts:['إشرافية','تطويرية','تبادلية','متابعة'],def:'إشرافية'},
+  {k:'rating',l:'التقدير العام (1-5)',type:'number',min:1,max:5},{k:'strengths',l:'نقاط القوة',type:'textarea',full:1},{k:'improve',l:'فرص التحسين',type:'textarea',full:1},{k:'followup',l:'التوصيات/المتابعة',type:'textarea',full:1}],
+  cols:['date','teacher','subject','cls','type','rating'],date:'date'},
+ followups:{t:'متابعة المعلمين',one:'متابعة',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'teacher',l:'المعلم',req:1},
+  {k:'area',l:'مجال المتابعة',type:'select',opts:['التخطيط والتحضير','الواجبات والتقويم','الانضباط والحضور','التطوير المهني','سجلات الطلاب','أخرى'],req:1},
+  {k:'domain',l:'المجال',type:'select',opts:DOMAINS,def:'التعليم والتعلم'},{k:'status',l:'الحالة',type:'select',opts:['مفتوحة','قيد المعالجة','مغلقة'],def:'مفتوحة'},{k:'notes',l:'الملاحظات والإجراء',type:'textarea',full:1}],
+  cols:['date','teacher','area','status'],date:'date'},
+ incidents:{t:'السلوك والحوادث',one:'حالة سلوك/حادثة',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'student',l:'الطالب/المعني',req:1},{k:'cls',l:'الصف'},
+  {k:'type',l:'النوع',type:'select',opts:['مخالفة سلوكية','تأخر متكرر','غياب متكرر','إصابة/حادث','تنمر','سلوك إيجابي','أخرى'],req:1},
+  {k:'degree',l:'الدرجة',type:'select',opts:['الأولى','الثانية','الثالثة','الرابعة','الخامسة','لا ينطبق'],def:'لا ينطبق'},
+  {k:'status',l:'الحالة',type:'select',opts:['مفتوحة','قيد المعالجة','مغلقة'],def:'مفتوحة'},{k:'action',l:'الإجراء المتخذ',type:'textarea',full:1}],
+  cols:['date','student','cls','type','degree','status'],date:'date'},
+ meetings:{t:'الاجتماعات والمحاضر',one:'اجتماع',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'title',l:'عنوان الاجتماع',req:1},
+  {k:'type',l:'النوع',type:'select',opts:['مجلس المدرسة','المعلمين','لجنة التميز','الإرشاد','أولياء الأمور','أخرى'],def:'المعلمين'},
+  {k:'domain',l:'المجال',type:'select',opts:DOMAINS,def:'الإدارة المدرسية'},{k:'attendees',l:'الحضور',type:'textarea',full:1},{k:'minutes',l:'المحضر/ما نوقش',type:'textarea',full:1},{k:'decisions',l:'القرارات والتوصيات',type:'textarea',full:1}],
+  cols:['date','title','type','domain'],date:'date'},
+ events:{t:'تقويم المناسبات',one:'مناسبة/فعالية',f:[
+  {k:'title',l:'المناسبة',req:1},{k:'date',l:'التاريخ',type:'date'},{k:'kind',l:'التصنيف',type:'select',opts:['مناسبة وطنية','مناسبة عالمية/توعوية','فعالية مدرسية','اختبارات','إجازة','أخرى'],def:'فعالية مدرسية'},
+  {k:'owner',l:'المسؤول'},{k:'status',l:'الحالة',type:'select',opts:['مخطط','منفذ','ملغى'],def:'مخطط'},{k:'notes',l:'ملاحظات/الشواهد',type:'textarea',full:1}],
+  cols:['date','title','kind','owner','status'],date:'date'},
+ activities:{t:'النشاط الطلابي',one:'نشاط',f:[
+  {k:'title',l:'النشاط',req:1},{k:'type',l:'النوع',type:'select',opts:['ثقافي','علمي','رياضي','اجتماعي','فني','تطوعي','كشفي','أخرى'],req:1},
+  {k:'date',l:'التاريخ',type:'date',req:1},{k:'owner',l:'المسؤول',req:1},{k:'participants',l:'عدد المشاركين',type:'number',min:0},
+  {k:'status',l:'الحالة',type:'select',opts:['مخطط','منفذ','ملغى'],def:'مخطط'},{k:'evidence',l:'الشواهد والملاحظات',type:'textarea',full:1},{k:'report',l:'تقرير النشاط',type:'textarea',full:1}],
+  cols:['date','title','type','owner','participants','status'],date:'date'},
+ parents:{t:'تواصل أولياء الأمور',one:'تواصل',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'parent',l:'ولي الأمر',req:1},{k:'student',l:'الطالب'},
+  {k:'channel',l:'الوسيلة',type:'select',opts:['زيارة','اتصال','رسالة','اجتماع أولياء أمور','منصة إلكترونية'],def:'اتصال'},
+  {k:'topic',l:'الموضوع',req:1},{k:'status',l:'الحالة',type:'select',opts:['مفتوحة','مغلقة'],def:'مغلقة'},{k:'notes',l:'الملخص والإجراء',type:'textarea',full:1}],
+  cols:['date','parent','student','channel','topic','status'],date:'date'},
+ committees:{t:'اللجان والتكليفات',one:'لجنة/تكليف',f:[
+  {k:'name',l:'اسم اللجنة/التكليف',req:1},{k:'kind',l:'النوع',type:'select',opts:['لجنة','تكليف فردي'],def:'لجنة'},{k:'head',l:'الرئيس/المكلف',req:1},
+  {k:'members',l:'الأعضاء',type:'textarea',full:1},{k:'tasks',l:'المهام',type:'textarea',full:1},{k:'date',l:'تاريخ التكليف',type:'date',def:'today'},{k:'end',l:'تاريخ الانتهاء',type:'date'},{k:'status',l:'الحالة',type:'select',opts:['سارية','منتهية'],def:'سارية'}],
+  cols:['name','kind','head','date','end','status'],date:'date'},
+ duty:{t:'المناوبة والإشراف',one:'مناوبة/إشراف',f:[
+  {k:'day',l:'اليوم',type:'select',opts:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'],req:1},{k:'kind',l:'النوع',type:'select',opts:['مناوبة صباحية','إشراف الفسحة','مناوبة نهاية الدوام','إشراف الصلاة','أخرى'],req:1},
+  {k:'staff',l:'المكلف',req:1},{k:'place',l:'الموقع'},{k:'from',l:'من تاريخ',type:'date'},{k:'to',l:'إلى تاريخ',type:'date'},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['day','kind','staff','place','from','to'],date:'from'},
+ recognitions:{t:'تكريم المنسوبين',one:'تكريم',f:[
+  {k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'name',l:'المكرَّم',req:1},{k:'role',l:'الصفة',type:'select',opts:['معلم','إداري','طالب','ولي أمر','شريك'],def:'معلم'},
+  {k:'reason',l:'سبب التكريم',req:1,full:1},{k:'kind',l:'نوع التكريم',type:'select',opts:['شهادة شكر','درع','خطاب شكر','إشادة في الطابور','أخرى'],def:'شهادة شكر'},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['date','name','role','reason','kind'],date:'date'},
+ actions:{t:'إجراءات خطة التحسين',one:'إجراء تحسيني',f:[
+  {k:'action',l:'الإجراء',req:1,full:1},{k:'domain',l:'المجال',type:'select',opts:DOMAINS,req:1},{k:'owner',l:'المسؤول',req:1},
+  {k:'deadline',l:'الموعد النهائي',type:'date',req:1},{k:'status',l:'الحالة',type:'select',opts:['لم يبدأ','قيد التنفيذ','منجز','متعثر'],def:'لم يبدأ'},
+  {k:'progress',l:'نسبة الإنجاز %',type:'number',min:0,max:100,def:0},{k:'indicator',l:'مؤشر التحقق',full:1},{k:'evidence',l:'الشواهد',type:'textarea',full:1}],
+  cols:['action','domain','owner','deadline','status','progress'],date:'deadline'}
+};
+const DONE={tasks:'مكتملة',actions:'منجز'};
+const lbl=(c,k)=>k==='rate'?'نسبة الحضور':(S[c].f.find(x=>x.k===k)||{}).l||k;
+
+/* ---------- Ready-made templates (editable) ---------- */
+const T=(p,d,t)=>({period:p,domain:d,title:t});
+const DEFAULT_TEMPLATES=[
+ T('يومي','الإدارة المدرسية','متابعة حضور وانصراف المنسوبين وانتظام الطابور الصباحي'),
+ T('يومي','الإدارة المدرسية','مراجعة البريد والتعاميم الواردة عبر الأنظمة الرسمية وإحالتها'),
+ T('يومي','البيئة المدرسية','جولة تفقدية على المرافق ودورات المياه والمقصف والفناء'),
+ T('يومي','البيئة المدرسية','متابعة المناوبة والإشراف اليومي وانصراف الطلاب الآمن'),
+ T('يومي','نواتج التعلم','متابعة غياب الطلاب وتأخرهم والتواصل مع أولياء الأمور'),
+ T('يومي','التعليم والتعلم','متابعة حصص الانتظار وسد الحصص الشاغرة'),
+ T('أسبوعي','التعليم والتعلم','تنفيذ زيارات صفية وفق الجدول وتقديم التغذية الراجعة'),
+ T('أسبوعي','التعليم والتعلم','متابعة تحضير الدروس وتنفيذ الخطط الفصلية'),
+ T('أسبوعي','الإدارة المدرسية','اجتماع أسبوعي مع الوكلاء والموجه الطلابي'),
+ T('أسبوعي','نواتج التعلم','مراجعة حالات السلوك والمواظبة مع لجنة التوجيه'),
+ T('أسبوعي','البيئة المدرسية','متابعة تنفيذ برامج الأمن والسلامة والصيانة'),
+ T('شهري','الإدارة المدرسية','عقد اجتماع المعلمين الشهري وتوثيق المحضر'),
+ T('شهري','نواتج التعلم','تحليل نتائج التقويم المستمر وتحديد الطلاب المحتاجين للدعم'),
+ T('شهري','التعليم والتعلم','متابعة خطط مجتمعات التعلم المهنية والتطوير المهني'),
+ T('شهري','البيئة المدرسية','تنفيذ خطة إخلاء/تدريب سلامة أو مراجعة جاهزيتها'),
+ T('شهري','الإدارة المدرسية','مراجعة سجل العهد والمستودع والميزانية التشغيلية'),
+ T('فصلي','الإدارة المدرسية','تحديث خطة التحسين المدرسية ومتابعة مؤشراتها'),
+ T('فصلي','نواتج التعلم','تحليل نتائج الاختبارات الفصلية وإعداد الخطط العلاجية والإثرائية'),
+ T('فصلي','التعليم والتعلم','تقييم أداء المعلمين ومناقشة النتائج معهم'),
+ T('فصلي','البيئة المدرسية','قياس رضا الطلاب وأولياء الأمور عن البيئة المدرسية'),
+ T('فصلي','الإدارة المدرسية','اجتماع مجلس المدرسة وأولياء الأمور'),
+ T('نهاية العام','الإدارة المدرسية','إعداد التقرير الختامي للعام الدراسي'),
+ T('نهاية العام','نواتج التعلم','تحليل نواتج التعلم السنوية ومقارنتها بمستهدفات الخطة'),
+ T('نهاية العام','التعليم والتعلم','تحديد احتياجات التطوير المهني للعام القادم'),
+ T('نهاية العام','البيئة المدرسية','حصر احتياجات الصيانة والتجهيز للعام القادم'),
+ T('نهاية العام','الإدارة المدرسية','تسليم العهد وإعداد التشكيلات والجداول المبدئية')
+];
+/* Occasions: dates only where fixed and well-known; others left blank for the user to set */
+const OCCASIONS=[
+ {title:'اليوم الوطني السعودي',kind:'مناسبة وطنية',md:'09-23'},
+ {title:'يوم المعلم العالمي',kind:'مناسبة عالمية/توعوية',md:'10-05'},
+ {title:'اليوم العالمي للغة العربية',kind:'مناسبة عالمية/توعوية',md:'12-18'},
+ {title:'يوم التأسيس',kind:'مناسبة وطنية',md:'02-22'},
+ {title:'يوم العلم',kind:'مناسبة وطنية',md:'03-11'},
+ {title:'اليوم العالمي للصحة',kind:'مناسبة عالمية/توعوية',md:'04-07'},
+ {title:'ذكرى البيعة',kind:'مناسبة وطنية'},
+ {title:'أسبوع الموهبة والإبداع',kind:'مناسبة عالمية/توعوية'},
+ {title:'أسبوع المرور / السلامة المرورية',kind:'مناسبة عالمية/توعوية'},
+ {title:'اجتماع أولياء الأمور',kind:'فعالية مدرسية'},
+ {title:'حفل تكريم المتفوقين',kind:'فعالية مدرسية'},
+ {title:'الاختبارات النهائية',kind:'اختبارات'}
+];
+/* Self-review indicators per domain */
+const REVIEW={
+ 'الإدارة المدرسية':['توجد خطة تشغيلية/تحسين معتمدة ومعلنة','تُعقد الاجتماعات الدورية وتُوثّق محاضرها وقراراتها','توزيع الأعمال والتكليفات واضح ومكتوب','تُتابع التعاميم وتُنفّذ في مواعيدها','الشراكة مع الأسرة والمجتمع مفعّلة وموثقة','تُستخدم البيانات في اتخاذ القرار'],
+ 'التعليم والتعلم':['تُنفّذ زيارات صفية منتظمة بتغذية راجعة مكتوبة','خطط الدروس متوافقة مع المناهج ومنفذة','تُستخدم استراتيجيات تدريس متنوعة','التقويم المستمر يُنفّذ ويُوظّف في التحسين','مجتمعات التعلم المهنية فاعلة','برامج التطوير المهني مبنية على الاحتياج'],
+ 'نواتج التعلم':['تُحلل نتائج الطلاب دورياً','توجد خطط علاجية وإثرائية مفعّلة','نسبة المواظبة والحضور مرتفعة ومتابعة','يُرصد تقدم الطلاب في المهارات الأساسية','تُقاس القيم والسلوك الإيجابي','يُحتفى بالإنجازات والمتفوقين'],
+ 'البيئة المدرسية':['المبنى والمرافق نظيفة وآمنة','خطة الأمن والسلامة معتمدة ومُدرّبة','المناوبة والإشراف منتظمة','الأنشطة الطلابية متنوعة ومنفذة','مناخ مدرسي إيجابي ومحفز','الموارد والتجهيزات متوفرة وتُصان']
+};
+
+/* ---------- Store ---------- */
+const COLS=Object.keys(S);
+function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
+let DB;
+function load(){try{const r=localStorage.getItem(KEY);DB=r?normalize(JSON.parse(r)):blank()}catch(e){console.warn(e);DB=blank()}}
+function normalize(d){const b=blank();if(!d||typeof d!=='object')return b;
+ const o={...b,...d,settings:{...b.settings,...(d.settings||{})}};
+ COLS.forEach(c=>{o[c]=Array.isArray(d[c])?d[c].filter(x=>x&&typeof x==='object').map(x=>({...x,id:String(x.id||uid())})):[]});
+ o.templates=Array.isArray(d.templates)?d.templates.filter(t=>t&&t.title):b.templates;
+ o.review=d.review&&typeof d.review==='object'?d.review:{};o.audit=Array.isArray(d.audit)?d.audit.slice(-1000):[];o.notified=d.notified||{};return o}
+let saveT;
+function save(){const ind=$('#saveInd');ind.textContent='… جارٍ الحفظ';ind.className='save saving';clearTimeout(saveT);
+ saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));ind.textContent='✓ محفوظ '+new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});ind.className='save'}
+ catch(e){ind.textContent='✗ تعذّر الحفظ';ind.className='save';toast('تعذّر الحفظ: قد تكون مساحة التخزين ممتلئة (قلّل حجم الشعار أو صدّر نسخة احتياطية).')}},250)}
+function audit(op,col,item){DB.audit.push({t:new Date().toISOString(),op,col,title:itemTitle(col,item)});if(DB.audit.length>1000)DB.audit.splice(0,DB.audit.length-1000)}
+function itemTitle(c,x){if(!x)return'';return String(x.title||x.action||x.name||x.teacher||x.student||x.parent||x.cls||x.staff||x.day||'').slice(0,80)}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200)}
+const hasSample=()=>COLS.some(c=>DB[c].some(x=>x.sample));
+
+/* ---------- Derived ---------- */
+const isOver=(c,x)=>{const k=S[c].date;return (c==='tasks'||c==='actions')&&x[k]&&x[k]<today()&&x.status!==DONE[c]};
+const attRate=x=>{const e=+x.enrolled,a=+x.absent;return e>0?Math.round((e-a)/e*1000)/10:null};
+function cellVal(c,k,x,hl){if(k==='rate'){const r=attRate(x);return r==null?'—':r+'%'}
+ const f=S[c].f.find(y=>y.k===k)||{};let v=x[k];
+ if(f.type==='date')return fmtDate(v,DB.settings.hijri);
+ if(k==='status'){const cls=/مكتملة|منجز|مغلقة|منفذ|سارية/.test(v)?'green':/متعثر|ملغى/.test(v)?'red':/قيد/.test(v)?'blue':'amber';return `<span class="pill ${cls}">${esc(v||'—')}</span>`}
+ if(k==='priority')return `<span class="pill ${v==='عالية'?'red':v==='منخفضة'?'green':'amber'}">${esc(v||'')}</span>`;
+ if(k==='progress')return `<div class="bar" style="min-width:70px" title="${+v||0}%"><i style="width:${Math.min(100,+v||0)}%"></i></div><span class="small">${+v||0}%</span>`;
+ v=esc(v??'');if(hl)v=v.replace(new RegExp(hl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark class="hl">${m}</mark>`);return v||'—'}
+
+/* ---------- Form dialog with validation ---------- */
+function openForm(c,item,onSaved){const sc=S[c],isNew=!item;item=item||{};
+ const f=$('#dlgForm');
+ f.innerHTML=`<div class="dlg-h"><span>${isNew?'إضافة':'تعديل'} ${sc.one}</span><button type="button" class="iconbtn" data-x aria-label="إغلاق">✕</button></div><div class="dlg-b">`+
+ sc.f.map(x=>{let v=item[x.k];if(v==null&&isNew){v=x.def==='today'?today():x.def??''}if(v==null)v='';const id='f_'+x.k;const req=x.req?' <span class="req">*</span>':'';
+  let inp;if(x.type==='select')inp=`<select id="${id}" name="${x.k}">${x.req&&!v?'<option value="">— اختر —</option>':''}${x.opts.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  else if(x.type==='textarea')inp=`<textarea id="${id}" name="${x.k}" maxlength="5000">${esc(v)}</textarea>`;
+  else inp=`<input id="${id}" name="${x.k}" type="${x.type||'text'}" value="${esc(v)}" ${x.min!=null?`min="${x.min}"`:''} ${x.max!=null&&x.type==='number'?`max="${x.max}"`:''} maxlength="${x.max&&x.type!=='number'?x.max:300}" ${x.ph?`placeholder="${esc(x.ph)}"`:''} ${x.type==='number'?'inputmode="numeric" step="1"':''}>`;
+  return `<div class="fld ${x.full?'full':''}"><label for="${id}">${esc(x.l)}${req}</label>${inp}<span class="err" id="e_${x.k}"></span></div>`}).join('')+
+ `</div><div class="dlg-f"><button class="btn gold" value="ok" type="submit">حفظ (Ctrl+Enter)</button><button type="button" class="btn ghost" data-x>إلغاء</button>${!isNew?'<button type="button" class="btn red" data-del style="margin-inline-start:auto">حذف</button>':''}</div>`;
+ const dlg=$('#dlg');
+ f.onsubmit=e=>{e.preventDefault();const data={};let ok=true;
+  sc.f.forEach(x=>{const el=f.elements[x.k];let v=el.value.trim();const fe=$('#e_'+x.k);let err='';
+   if(x.req&&v==='')err='هذا الحقل مطلوب';
+   else if(x.type==='number'&&v!==''){const n=Number(v);if(!Number.isFinite(n)||!Number.isInteger(n))err='أدخل رقماً صحيحاً';else if(x.min!=null&&n<x.min)err='الحد الأدنى '+x.min;else if(x.max!=null&&n>x.max)err='الحد الأعلى '+x.max;else v=n}
+   else if(x.type==='date'&&v!==''&&isNaN(parseD(v)))err='تاريخ غير صالح';
+   fe.textContent=err;el.closest('.fld').classList.toggle('bad',!!err);if(err)ok=false;data[x.k]=v});
+  if(c==='attendance'&&ok){if(data.absent>data.enrolled){ok=false;$('#e_absent').textContent='الغائبون أكثر من المقيدين'}if((+data.excused||0)>data.absent){ok=false;$('#e_excused').textContent='أكبر من عدد الغائبين'}}
+  if(c==='committees'&&ok&&data.end&&data.date&&data.end<data.date){ok=false;$('#e_end').textContent='قبل تاريخ التكليف'}
+  if(c==='duty'&&ok&&data.to&&data.from&&data.to<data.from){ok=false;$('#e_to').textContent='قبل تاريخ البداية'}
+  if(!ok){const b=f.querySelector('.bad input,.bad select,.bad textarea');b&&b.focus();return}
+  const wasDone=item.status;
+  if(isNew){const n={id:uid(),created:new Date().toISOString(),...data};DB[c].push(n);audit('إضافة',c,n);item=n}
+  else{Object.assign(item,data,{updated:new Date().toISOString()});delete item.sample;audit('تعديل',c,item)}
+  if(c==='tasks')maybeRecur(item,wasDone);
+  if(c==='actions'&&item.status==='منجز')item.progress=100;
+  save();dlg.close();toast('تم الحفظ');onSaved?onSaved():render()};
+ f.onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();f.requestSubmit()}};
+ $$('[data-x]',f).forEach(b=>b.onclick=()=>dlg.close());
+ const del=$('[data-del]',f);if(del)del.onclick=()=>{if(!confirm('حذف هذا السجل نهائياً؟'))return;DB[c]=DB[c].filter(x=>x.id!==item.id);audit('حذف',c,item);save();dlg.close();toast('تم الحذف');render()};
+ dlg.showModal();setTimeout(()=>{const first=f.querySelector('.dlg-b input,.dlg-b select,.dlg-b textarea');first&&first.focus()},30)}
+
+function nextDue(d,r){const x=parseD(d||today());if(r==='يومي')x.setDate(x.getDate()+1);else if(r==='أسبوعي')x.setDate(x.getDate()+7);else if(r==='شهري')x.setMonth(x.getMonth()+1);else if(r==='فصلي')x.setMonth(x.getMonth()+3);return iso(x)}
+function maybeRecur(t,prev){if(t.status==='مكتملة'&&prev!=='مكتملة'&&t.recur&&t.recur!=='لا يتكرر'&&!t.recurred){t.recurred=1;t.doneAt=today();
+ let nd=nextDue(t.due,t.recur);while(nd<today())nd=nextDue(nd,t.recur);
+ const n={...t,id:uid(),due:nd,status:'جديدة',created:new Date().toISOString()};delete n.recurred;delete n.doneAt;delete n.sample;DB.tasks.push(n);audit('تكرار تلقائي','tasks',n);toast('أُنشئت المهمة التالية بتاريخ '+nd)}
+ if(t.status==='مكتملة'&&!t.doneAt)t.doneAt=today()}
+
+/* ---------- Views ---------- */
+const view=()=>(location.hash||'#dashboard').slice(1).split('?')[0];
+const flt={};
+function listView(c){const sc=S[c];const F=flt[c]=flt[c]||{q:'',status:'',domain:'',from:'',to:''};
+ const hasSt=sc.f.find(x=>x.k==='status'),hasDom=sc.f.find(x=>x.k==='domain'),dk=sc.date;
+ let rows=DB[c].filter(x=>{if(F.status==='__over'){if(!isOver(c,x))return false}else if(F.status&&x.status!==F.status)return false;if(F.domain&&x.domain!==F.domain)return false;
+  if(F.from&&(x[dk]||'')<F.from)return false;if(F.to&&(x[dk]||'9')>F.to)return false;if(F.q&&!JSON.stringify(x).toLowerCase().includes(F.q.toLowerCase()))return false;return true});
+ rows.sort((a,b)=>c==='tasks'||c==='actions'?String(a[dk]||'9').localeCompare(String(b[dk]||'9')):String(b[dk]||'').localeCompare(String(a[dk]||'')));
+ const over=DB[c].filter(x=>isOver(c,x)).length;
+ let extra='';
+ if(c==='attendance'&&rows.length){const e=rows.reduce((s,x)=>s+(+x.enrolled||0),0),a=rows.reduce((s,x)=>s+(+x.absent||0),0);extra=`<div class="muted small" style="margin-bottom:8px">إجمالي المعروض: المقيدون ${e} — الغائبون ${a} — نسبة الحضور ${e?Math.round((e-a)/e*1000)/10+'%':'—'}</div>`}
+ if(c==='activities'&&rows.length){extra=`<div class="muted small" style="margin-bottom:8px">المنفذ: ${rows.filter(x=>x.status==='منفذ').length} من ${rows.length} — إجمالي المشاركين: ${rows.reduce((s,x)=>s+(+x.participants||0),0)}</div>`}
+ const help={tasks:'التذكير يعمل والتطبيق/التبويب مفتوح أو التطبيق المثبّت قيد التشغيل. المهام المتكررة تُنشأ نسختها التالية تلقائياً عند الإنجاز.',events:'المواعيد المضافة من القوالب تشمل فقط المناسبات ذات التاريخ الميلادي الثابت؛ ما عداها حدّد تاريخه من التقويم المعتمد.'}[c];
+ return `<div class="head"><div><h2>${sc.t}</h2><div class="muted small">${DB[c].length} سجل${over?` — <b style="color:var(--bad)">${over} متأخر</b>`:''}</div></div>
+ <div class="btns"><button class="btn gold" data-act="add" data-c="${c}">＋ إضافة ${sc.one}</button>${c==='tasks'?'<a class="btn ghost" href="#templates">من القوالب</a>':''}${c==='events'?'<button class="btn ghost" data-act="occ">إضافة المناسبات المعتادة</button>':''}<button class="btn ghost" data-act="csv" data-c="${c}">CSV</button><button class="btn ghost" data-act="xls" data-c="${c}">Excel</button><button class="btn ghost" data-act="print" data-c="${c}">طباعة</button></div></div>
+ ${help?`<div class="card small muted" style="padding:10px 14px">ℹ️ ${help}</div>`:''}
+ <div class="card"><div class="filters"><input type="search" placeholder="تصفية…" data-f="q" value="${esc(F.q)}" aria-label="تصفية">
+ ${hasSt?`<select data-f="status" aria-label="الحالة"><option value="">كل الحالات</option>${(c==='tasks'||c==='actions')?`<option value="__over" ${F.status==='__over'?'selected':''}>المتأخرة فقط</option>`:''}${hasSt.opts.map(o=>`<option ${o===F.status?'selected':''}>${o}</option>`).join('')}</select>`:''}
+ ${hasDom?`<select data-f="domain" aria-label="المجال"><option value="">كل المجالات</option>${DOMAINS.map(o=>`<option ${o===F.domain?'selected':''}>${o}</option>`).join('')}</select>`:''}
+ <label class="small">من <input type="date" data-f="from" value="${F.from}"></label><label class="small">إلى <input type="date" data-f="to" value="${F.to}"></label></div>${extra}
+ ${rows.length?table(c,rows,sc.cols,F.q):`<div class="empty">لا توجد سجلات${DB[c].length?' مطابقة للتصفية':' بعد. ابدأ بإضافة '+sc.one+'.'}</div>`}</div>`}
+function table(c,rows,cols,hl){return `<div class="tbl-wrap"><table class="resp"><thead><tr>${cols.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(x=>`<tr class="${isOver(c,x)?'over':''}">${cols.map(k=>`<td data-l="${esc(lbl(c,k))}">${cellVal(c,k,x,hl)}${k===cols[0]&&x.sample?' <span class="pill sample">تجريبي</span>':''}${k===S[c].date&&isOver(c,x)?' <span class="pill red">متأخرة</span>':''}</td>`).join('')}<td data-l="">${c==='tasks'&&x.status!=='مكتملة'?`<button class="btn sm gold" data-act="done" data-c="${c}" data-id="${x.id}" title="تعليم كمكتملة">✓</button> `:''}<button class="btn sm ghost" data-act="edit" data-c="${c}" data-id="${x.id}">تعديل</button></td></tr>`).join('')}</tbody></table></div>`}
+
+function stats(){const t=today(),m=t.slice(0,7),wk=addDays(t,-6),d30=addDays(t,-29);
+ const att=DB.attendance.filter(x=>x.date>=d30&&x.date<=t),e=att.reduce((s,x)=>s+(+x.enrolled||0),0),ab=att.reduce((s,x)=>s+(+x.absent||0),0);
+ const tod=DB.attendance.filter(x=>x.date===t),te=tod.reduce((s,x)=>s+(+x.enrolled||0),0),ta=tod.reduce((s,x)=>s+(+x.absent||0),0);
+ const tk=DB.tasks,done=tk.filter(x=>x.status==='مكتملة').length;
+ return{attRate:e?Math.round((e-ab)/e*1000)/10:null,attDays:new Set(att.map(x=>x.date)).size,todAbs:te?ta:null,todRate:te?Math.round((te-ta)/te*1000)/10:null,
+  taskPct:tk.length?Math.round(done/tk.length*100):null,tasks:tk.length,done,over:tk.filter(x=>isOver('tasks',x)).length,dueToday:tk.filter(x=>x.due===t&&x.status!=='مكتملة').length,
+  incM:DB.incidents.filter(x=>(x.date||'').startsWith(m)).length,incOpen:DB.incidents.filter(x=>x.status!=='مغلقة').length,
+  visM:DB.visits.filter(x=>(x.date||'').startsWith(m)).length,visW:DB.visits.filter(x=>x.date>=wk&&x.date<=t).length,
+  actPct:DB.actions.length?Math.round(DB.actions.reduce((s,x)=>s+(x.status==='منجز'?100:+x.progress||0),0)/DB.actions.length):null,actOver:DB.actions.filter(x=>isOver('actions',x)).length,
+  review:reviewPct()}}
+function reviewPct(dom){const ds=dom?[dom]:DOMAINS;let s=0,n=0;ds.forEach(d=>REVIEW[d].forEach((_,i)=>{const v=(DB.review[d]||{})[i];if(v&&v.s!=null&&v.s!==''){s+=+v.s;n++}}));return n?Math.round(s/(n*2)*100):null}
+const K=(l,v,s,cl='')=>`<div class="kpi ${cl}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
+ const up=[...DB.events.filter(x=>x.date>=t&&x.date<=soon&&x.status!=='ملغى').map(x=>({...x,_k:'مناسبة'})),...DB.activities.filter(x=>x.date>=t&&x.date<=soon&&x.status!=='ملغى').map(x=>({...x,_k:'نشاط'}))].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
+ const dueList=DB.tasks.filter(x=>x.status!=='مكتملة'&&x.due&&x.due<=addDays(t,7)).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
+ const empty=!COLS.some(c=>DB[c].length);
+ return `<div class="head"><div><h2>${esc(DB.settings.school||'لوحة قيادة المدرسة')}</h2><div class="muted small">${DB.settings.principal?'قائد المدرسة: '+esc(DB.settings.principal)+' — ':''}${fmtDate(t)}</div></div>
+ <div class="btns"><button class="btn gold" data-act="add" data-c="tasks">＋ مهمة</button><button class="btn ghost" data-act="add" data-c="attendance">＋ حضور اليوم</button><button class="btn ghost" data-act="add" data-c="visits">＋ زيارة</button><button class="btn ghost" data-act="weekly">التقرير الأسبوعي</button></div></div>
+ ${empty?`<div class="card"><h3>مرحباً بك 👋</h3><p class="muted">لا توجد بيانات بعد. ابدأ من <a href="#settings">الإعدادات</a> بإدخال اسم المدرسة والشعار، ثم أضف المهام من <a href="#templates">القوالب الجاهزة</a> وسجّل الحضور والزيارات. بياناتك محفوظة على هذا الجهاز فقط — صدّر نسخة احتياطية دورياً. يمكنك أيضاً تحميل <b>بيانات تجريبية</b> معلَّمة للتعرّف على اللوحة ثم حذفها.</p><button class="btn ghost" data-act="sample">تحميل بيانات تجريبية</button></div>`:''}
+ <div class="grid kpis">
+ ${K('نسبة حضور الطلاب (30 يوماً)',st.attRate==null?'—':st.attRate+'%',st.attRate==null?'لم يُسجَّل حضور':'من '+st.attDays+' يوم مسجّل','green')}
+ ${K('غياب اليوم',st.todAbs==null?'—':st.todAbs,st.todRate==null?'لم يُسجَّل حضور اليوم':'نسبة الحضور '+st.todRate+'%')}
+ ${K('إنجاز المهام',st.taskPct==null?'—':st.taskPct+'%',st.tasks?st.done+' من '+st.tasks+' مهمة':'لا توجد مهام','gold')}
+ ${K('مهام متأخرة',st.over,st.dueToday+' مستحقة اليوم',st.over?'red':'')}
+ ${K('السلوك والحوادث (هذا الشهر)',st.incM,st.incOpen+' حالة مفتوحة',st.incOpen?'red':'')}
+ ${K('الزيارات الصفية (هذا الشهر)',st.visM,st.visW+' خلال 7 أيام')}
+ ${K('إنجاز خطة التحسين',st.actPct==null?'—':st.actPct+'%',st.actOver?st.actOver+' إجراء متأخر':DB.actions.length+' إجراء','gold')}
+ ${K('المراجعة الذاتية',st.review==null?'—':st.review+'%','متوسط المجالات الأربعة')}
+ </div>
+ <div class="grid two"><div class="card"><h3>المهام المستحقة والمتأخرة (7 أيام)</h3>${dueList.length?dueList.map(x=>`<div class="row"><span class="grow">${esc(x.title)} ${x.sample?'<span class="pill sample">تجريبي</span>':''}</span>${isOver('tasks',x)?'<span class="pill red">متأخرة</span>':''}<span class="small muted">${fmtDate(x.due,false)}</span><button class="btn sm gold" data-act="done" data-c="tasks" data-id="${x.id}" aria-label="إنجاز">✓</button></div>`).join(''):'<div class="empty">لا توجد مهام مستحقة</div>'}</div>
+ <div class="card"><h3>المناسبات والأنشطة القادمة (30 يوماً)</h3>${up.length?up.map(x=>`<div class="row"><span class="pill blue">${x._k}</span><span class="grow">${esc(x.title)}</span><span class="small muted">${fmtDate(x.date,false)}</span></div>`).join(''):'<div class="empty">لا توجد مناسبات أو أنشطة قادمة مسجلة</div>'}</div></div>
+ <div class="grid two"><div class="card"><h3>إنجاز المهام حسب المجال</h3>${DOMAINS.map(d=>{const a=DB.tasks.filter(x=>x.domain===d),dn=a.filter(x=>x.status==='مكتملة').length,p=a.length?Math.round(dn/a.length*100):0;return `<div class="row"><span style="width:120px">${d}</span><div class="bar grow"><i style="width:${p}%"></i></div><span class="small" style="width:80px">${a.length?p+'% ('+dn+'/'+a.length+')':'—'}</span></div>`}).join('')}</div>
+ <div class="card"><h3>المراجعة الذاتية حسب المجال</h3>${DOMAINS.map(d=>{const p=reviewPct(d);return `<div class="row"><span style="width:120px">${d}</span><div class="bar grow"><i style="width:${p||0}%"></i></div><span class="small" style="width:50px">${p==null?'—':p+'%'}</span></div>`}).join('')}<a class="small" href="#review">فتح المراجعة الذاتية ←</a></div></div>`}
+
+function templatesView(){const g=PERIODS.map(p=>{const list=DB.templates.filter(t=>t.period===p).sort((a,b)=>DOMAINS.indexOf(a.domain)-DOMAINS.indexOf(b.domain));
+ return `<div class="card tpl-group"><div class="row"><h3 class="grow" style="margin:0">${p}</h3><label class="small"><input type="checkbox" data-allp="${p}"> تحديد الكل</label></div>${list.map(t=>`<div class="tpl"><input type="checkbox" data-tp="${t.id}" data-p="${p}" aria-label="تحديد"><div class="grow"><input class="tpl-t" data-tt="${t.id}" value="${esc(t.title)}" aria-label="نص القالب" style="width:100%;border:0;background:transparent;padding:2px"><div><span class="pill">${esc(t.domain)}</span></div></div><button class="btn sm ghost" data-act="tdel" data-id="${t.id}" aria-label="حذف القالب">✕</button></div>`).join('')||'<div class="empty">لا قوالب</div>'}</div>`}).join('');
+ return `<div class="head"><div><h2>قوالب مهام مدير المدرسة</h2><div class="muted small">قوالب جاهزة قابلة للتعديل (اضغط على النص لتعديله). حدّد القوالب ثم أنشئ مهاماً منها بتاريخ بداية.</div></div>
+ <div class="btns"><label class="small">تاريخ البداية <input type="date" id="tplStart" value="${today()}"></label><button class="btn gold" data-act="tcreate">إنشاء مهام من المحدد</button><button class="btn ghost" data-act="tadd">＋ قالب جديد</button><button class="btn ghost" data-act="treset">استعادة القوالب الافتراضية</button></div></div>${g}`}
+
+function reviewView(){return `<div class="head"><div><h2>المراجعة الذاتية الدورية</h2><div class="muted small">قيّم كل مؤشر: متحقق (2) / متحقق جزئياً (1) / غير متحقق (0). تُحسب النسبة تلقائياً. أضف الشواهد في الملاحظة.</div></div>
+ <div class="btns"><button class="btn ghost" data-act="print" data-c="review">طباعة</button><button class="btn ghost" data-act="rvreset">بدء دورة مراجعة جديدة</button></div></div>
+ ${DB.review._date?`<div class="muted small" style="margin-bottom:8px">آخر تحديث: ${fmtDate(DB.review._date)}</div>`:''}
+ ${DOMAINS.map(d=>{const p=reviewPct(d);return `<div class="card"><div class="row"><h3 class="grow" style="margin:0">${d}</h3><b>${p==null?'—':p+'%'}</b></div><div class="bar" style="margin:6px 0 4px"><i style="width:${p||0}%"></i></div>
+ ${REVIEW[d].map((q,i)=>{const v=(DB.review[d]||{})[i]||{};return `<div class="rv-item"><div>${esc(q)}</div><div class="seg" role="group" aria-label="${esc(q)}">${[['2','متحقق'],['1','جزئي'],['0','غير متحقق']].map(([s,l])=>`<button type="button" data-rv="${d}|${i}" data-s="${s}" class="${String(v.s)===s?'on':''}" aria-pressed="${String(v.s)===s}">${l}</button>`).join('')}</div><textarea data-rvn="${d}|${i}" placeholder="الشواهد/الأدلة والملاحظات" aria-label="شواهد">${esc(v.n||'')}</textarea></div>`}).join('')}
+ <button class="btn sm ghost" data-act="rv2act" data-d="${d}" style="margin-top:8px">تحويل المؤشرات غير المتحققة إلى إجراءات تحسين</button></div>`}).join('')}`}
+
+function auditView(){const a=DB.audit.slice().reverse();return `<div class="head"><div><h2>سجل التغييرات</h2><div class="muted small">آخر ${a.length} عملية (يُحتفظ بآخر 1000)</div></div><div class="btns"><button class="btn ghost" data-act="auditcsv">تصدير CSV</button></div></div>
+ <div class="card">${a.length?`<div class="tbl-wrap"><table class="resp"><thead><tr><th>الوقت</th><th>العملية</th><th>القسم</th><th>العنصر</th></tr></thead><tbody>${a.slice(0,300).map(x=>`<tr><td data-l="الوقت">${esc(new Date(x.t).toLocaleString('ar-SA-u-nu-latn'))}</td><td data-l="العملية">${esc(x.op)}</td><td data-l="القسم">${esc(S[x.col]?.t||x.col||'')}</td><td data-l="العنصر">${esc(x.title)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لا توجد تغييرات بعد</div>'}</div>`}
+
+function reportsView(){const opt=['summary|الملخص العام','weekly|التقرير الأسبوعي',...COLS.map(c=>c+'|'+S[c].t),'review|المراجعة الذاتية'];
+ return `<div class="head"><div><h2>التقارير والتصدير</h2><div class="muted small">اختر التقرير ثم «طباعة» واحفظه PDF من نافذة الطباعة، أو صدّره CSV/Excel.</div></div></div>
+ <div class="card"><div class="filters"><select id="rpType" aria-label="نوع التقرير">${opt.map(o=>{const[a,b]=o.split('|');return `<option value="${a}">${b}</option>`}).join('')}</select>
+ <label class="small">من <input type="date" id="rpFrom"></label><label class="small">إلى <input type="date" id="rpTo"></label>
+ <button class="btn gold" data-act="rprint">طباعة / PDF</button><button class="btn ghost" data-act="rcsv">CSV</button><button class="btn ghost" data-act="xlsall">Excel (كل السجلات)</button></div>
+ <p class="small muted">التقرير الأسبوعي يغطي آخر 7 أيام تلقائياً. ملف Excel يحتوي ورقة لكل سجل.</p></div>`}
+
+function settingsView(){const s=DB.settings,used=(new Blob([JSON.stringify(DB)]).size/1024).toFixed(0);
+ return `<div class="head"><div><h2>الإعدادات والنسخ الاحتياطي</h2></div></div>
+ <div class="grid two"><div class="card"><h3>بيانات المدرسة</h3><form id="setForm" novalidate>
+ ${[['school','اسم المدرسة'],['principal','اسم قائد/مدير المدرسة'],['region','إدارة التعليم / المكتب'],['year','العام الدراسي']].map(([k,l])=>`<div class="fld" style="margin-bottom:10px"><label for="s_${k}">${l}</label><input id="s_${k}" name="${k}" value="${esc(s[k])}" maxlength="120"></div>`).join('')}
+ <div class="fld" style="margin-bottom:10px"><label>الشعار</label><div class="row">${s.logo?`<img src="${s.logo}" alt="الشعار" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--line);border-radius:8px">`:'<span class="muted small">لا يوجد شعار</span>'}<button type="button" class="btn sm ghost" data-act="logo">رفع شعار</button>${s.logo?'<button type="button" class="btn sm ghost" data-act="nologo">إزالة</button>':''}</div></div>
+ <button class="btn gold" type="submit">حفظ الإعدادات</button></form></div>
+ <div class="card"><h3>التذكيرات والعرض</h3>
+ <div class="fld" style="margin-bottom:10px"><label for="s_rt">وقت التذكير اليومي الافتراضي للمهام المستحقة</label><input type="time" id="s_rt" value="${esc(s.remindTime)}"></div>
+ <label class="row"><input type="checkbox" id="s_mute" ${s.mute?'checked':''}> كتم صوت التنبيه</label>
+ <label class="row"><input type="checkbox" id="s_hj" ${s.hijri?'checked':''}> عرض التاريخ الهجري (أم القرى) بجانب الميلادي</label>
+ <div class="btns" style="margin:8px 0"><button class="btn ghost" data-act="notif">تفعيل إشعارات المتصفح</button><button class="btn ghost" data-act="chime">تجربة الصوت</button></div>
+ <p class="small muted">حالة الإشعارات: <b id="nstate">${'Notification' in window?({granted:'مفعّلة',denied:'مرفوضة (فعّلها من إعدادات المتصفح)',default:'غير مفعّلة'})[Notification.permission]:'غير مدعومة في هذا المتصفح'}</b>.<br>تنبيه: تعمل التذكيرات والإشعارات فقط أثناء فتح التطبيق/التبويب أو تشغيل التطبيق المثبّت؛ لا يوجد خادم لإرسال إشعارات والتطبيق مغلق.</p></div></div>
+ <div class="grid two"><div class="card"><h3>النسخ الاحتياطي</h3><p class="small muted">البيانات محفوظة في هذا المتصفح على هذا الجهاز فقط (الحجم الحالي ≈ ${used} ك.ب). مسح بيانات المتصفح يحذفها — صدّر نسخة احتياطية بانتظام وانقلها بين الأجهزة بالاستيراد.</p>
+ <div class="btns"><button class="btn gold" data-act="export">تصدير نسخة احتياطية JSON</button><button class="btn ghost" data-act="import">استيراد نسخة احتياطية</button></div></div>
+ <div class="card"><h3>البيانات التجريبية والتهيئة</h3><p class="small muted">البيانات التجريبية معلَّمة بشارة «تجريبي» وتظهر لافتة تنبيه أثناء وجودها، ويمكن حذفها بضغطة.</p>
+ <div class="btns"><button class="btn ghost" data-act="sample">تحميل بيانات تجريبية</button><button class="btn ghost" data-act="clearSample">حذف البيانات التجريبية</button><button class="btn red" data-act="wipe">مسح كل البيانات</button></div></div></div>
+ <div class="card small muted">الإصدار ${APP_VERSION} — يعمل دون اتصال بعد أول تحميل، ويمكن تثبيته من قائمة المتصفح «تثبيت التطبيق / إضافة إلى الشاشة الرئيسية». <button class="btn sm ghost" data-act="install" id="instBtn" hidden>تثبيت التطبيق</button></div>`}
+
+function searchView(q){const ql=q.toLowerCase();let out='',n=0;
+ COLS.forEach(c=>{const r=DB[c].filter(x=>Object.entries(x).some(([k,v])=>k!=='id'&&typeof v!=='object'&&String(v).toLowerCase().includes(ql)));if(r.length){n+=r.length;out+=`<div class="card"><h3>${S[c].t} (${r.length})</h3>${table(c,r.slice(0,50),S[c].cols,q)}</div>`}});
+ const tp=DB.templates.filter(t=>t.title.toLowerCase().includes(ql));if(tp.length){n+=tp.length;out+=`<div class="card"><h3>قوالب المهام (${tp.length})</h3>${tp.map(t=>`<div class="row">${esc(t.title)} <span class="pill">${t.period}</span></div>`).join('')}</div>`}
+ return `<div class="head"><h2>نتائج البحث عن «${esc(q)}» (${n})</h2></div>${out||'<div class="card empty">لا توجد نتائج</div>'}`}
+
+/* ---------- Render ---------- */
+let searchQ='';
+function render(){const v=view(),m=$('#main');
+ $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
+ if(searchQ)m.innerHTML=searchView(searchQ);
+ else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v])m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
+ else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='settings')m.innerHTML=settingsView();else m.innerHTML=dashboard();
+ chrome()}
+function chrome(){const s=DB.settings;$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
+ const lg=$('#topLogo');if(s.logo){lg.src=s.logo;lg.hidden=false}else lg.hidden=true;
+ $('#sampleBar').hidden=!hasSample();const o=DB.tasks.filter(x=>isOver('tasks',x)).length;$('#navOver').hidden=!o;$('#navOver').textContent=o;
+ $('#todayDate').innerHTML=fmtDate(today(),s.hijri);$('#verLbl').textContent='الإصدار '+APP_VERSION;
+ const ib=$('#instBtn');if(ib)ib.hidden=!deferredInstall;bell(false)}
+
+/* ---------- Bell & reminders ---------- */
+function dueTasks(){const t=today();return DB.tasks.filter(x=>x.status!=='مكتملة'&&x.due&&x.due<=t)}
+function bell(open){const list=dueTasks(),seen=DB.notified._seen||'';const unread=list.filter(x=>!seen.includes(x.id)).length;
+ const b=$('#bellBadge');b.hidden=!unread;b.textContent=unread;
+ if(open===false)return;const p=$('#bellPanel');
+ p.innerHTML=`<div class="row"><b class="grow">المهام المستحقة والمتأخرة (${list.length})</b><button class="iconbtn" style="background:var(--soft);color:var(--text)" data-act="bellclose" aria-label="إغلاق">✕</button></div>`+
+ (list.length?PERIODS.map(pr=>{const a=list.filter(x=>x.period===pr);return a.length?`<h4>${pr}</h4>`+a.map(x=>`<div class="it"><span>${esc(x.title)}</span><span>${x.due<today()?'<span class="pill red">متأخرة</span>':'<span class="pill amber">اليوم</span>'} <button class="btn sm gold" data-act="done" data-c="tasks" data-id="${x.id}" aria-label="إنجاز">✓</button></span></div>`).join(''):''}).join(''):'<div class="empty">لا توجد تنبيهات 🎉</div>')+
+ `<p class="small muted">تعمل التذكيرات أثناء فتح التطبيق أو تشغيله مثبّتاً. ${'Notification' in window&&Notification.permission!=='granted'?'<button class="btn sm ghost" data-act="notif">تفعيل الإشعارات</button>':''}</p>`;
+ p.hidden=false;DB.notified._seen=list.map(x=>x.id).join(',');save();b.hidden=true}
+let actx;const unlockAudio=()=>{try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}};['pointerdown','keydown'].forEach(ev=>addEventListener(ev,unlockAudio,{once:true,capture:true}));
+function chime(){if(DB.settings.mute||!actx)return;try{actx.resume();const t=actx.currentTime;
+ [880,1318.5].forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t+i*.18);g.gain.linearRampToValueAtTime(.25,t+i*.18+.02);g.gain.exponentialRampToValueAtTime(.001,t+i*.18+.9);o.connect(g).connect(actx.destination);o.start(t+i*.18);o.stop(t+i*.18+1)})}catch(e){}}
+function checkReminders(){const now=new Date(),t=today(),hm=pad(now.getHours())+':'+pad(now.getMinutes());let fired=[];
+ DB.tasks.forEach(x=>{if(x.status==='مكتملة'||!x.due||x.due>t)return;const when=x.remind||DB.settings.remindTime||'07:30';const key=x.id+'@'+t;
+  if(hm>=when&&!DB.notified[key]){DB.notified[key]=1;fired.push(x)}});
+ Object.keys(DB.notified).forEach(k=>{if(k.includes('@')&&k.split('@')[1]<addDays(t,-14))delete DB.notified[k]});
+ if(!fired.length)return;save();chime();
+ const msg=fired.length===1?fired[0].title:fired.length+' مهام مستحقة/متأخرة';toast('🔔 '+msg);
+ if('Notification' in window&&Notification.permission==='granted'){try{const n=new Notification('تذكير — لوحة قيادة المدرسة',{body:msg,icon:'icon-192.png',tag:'sld-'+t,lang:'ar',dir:'rtl'});n.onclick=()=>{window.focus();location.hash='#tasks'}}catch(e){navigator.serviceWorker?.ready.then(r=>r.showNotification('تذكير — لوحة قيادة المدرسة',{body:msg,icon:'icon-192.png'}))}}
+ bell(false);chrome()}
+
+/* ---------- Export ---------- */
+function rowsFor(c,from,to){const k=S[c].date;return DB[c].filter(x=>(!from||(x[k]||'')>=from)&&(!to||(x[k]||'')<=to))}
+function plainVal(c,k,x){if(k==='rate'){const r=attRate(x);return r==null?'':r+'%'}const f=S[c].f.find(y=>y.k===k)||{};return f.type==='date'?fmtPlain(x[k]):(x[k]??'')}
+function download(name,content,type){const b=content instanceof Blob?content:new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+const csvCell=v=>{v=String(v??'');if(/^[=+\-@]/.test(v))v="'"+v;return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+function csv(c,rows){const keys=[...S[c].f.map(f=>f.k),...(c==='attendance'?['rate']:[])];
+ const out=[keys.map(k=>lbl(c,k)).concat(['بيانات تجريبية'])].concat(rows.map(x=>keys.map(k=>plainVal(c,k,x)).concat([x.sample?'نعم':''])));
+ download(`${S[c].t}-${today()}.csv`,'\ufeff'+out.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8')}
+const xe=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+function xls(cols){let x='<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0F2747" ss:Pattern="Solid"/></Style></Styles>';
+ cols.forEach(c=>{const keys=[...S[c].f.map(f=>f.k),...(c==='attendance'?['rate']:[])];
+  x+=`<Worksheet ss:Name="${xe(S[c].t.slice(0,31))}" ss:RightToLeft="1"><Table><Row>${keys.map(k=>`<Cell ss:StyleID="h"><Data ss:Type="String">${xe(lbl(c,k))}</Data></Cell>`).join('')}</Row>`+
+  DB[c].map(r=>'<Row>'+keys.map(k=>{const v=plainVal(c,k,r);const num=typeof r[k]==='number';return `<Cell><Data ss:Type="${num?'Number':'String'}">${xe(v)}</Data></Cell>`}).join('')+'</Row>').join('')+'</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><DisplayRightToLeft/></WorksheetOptions></Worksheet>'});
+ download(`لوحة-قيادة-المدرسة-${today()}.xls`,x+'</Workbook>','application/vnd.ms-excel')}
+
+/* ---------- Print ---------- */
+function printHead(title,sub){const s=DB.settings;return `<div class="ph">${s.logo?`<img src="${s.logo}" alt="">`:''}<div><div style="font-size:11pt">المملكة العربية السعودية — وزارة التعليم${s.region?' — '+esc(s.region):''}</div><div style="font-weight:800;font-size:14pt">${esc(s.school||'')}</div><div style="font-size:10pt">${s.year?'العام الدراسي '+esc(s.year)+' — ':''}تاريخ الطباعة: ${fmtPlain(today())}</div></div></div><h2>${esc(title)}</h2>${sub?`<p>${sub}</p>`:''}${hasSample()?'<p style="color:#b45309"><b>تنبيه: يتضمن التقرير بيانات تجريبية للتوضيح فقط.</b></p>':''}`}
+function ptable(c,rows){const keys=S[c].cols;return rows.length?`<table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><thead><tr>${keys.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}</tr></thead><tbody>${rows.map(x=>`<tr>${keys.map(k=>`<td>${esc(plainVal(c,k,x))}${k===keys[0]&&x.sample?' (تجريبي)':''}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<p>لا توجد سجلات.</p>'}
+const sig=()=>`<div class="sig"><div>قائد المدرسة: ${esc(DB.settings.principal||'....................')}</div><div>التوقيع: ....................</div><div>الختم</div></div>`;
+function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${from?fmtPlain(from):'…'} — ${to?fmtPlain(to):'…'}`:'';
+ if(type==='weekly'){to=today();from=addDays(to,-6);const st=stats();h=printHead('التقرير الأسبوعي','الفترة: '+fmtPlain(from)+' — '+fmtPlain(to));
+  const att=rowsFor('attendance',from,to),e=att.reduce((s,x)=>s+(+x.enrolled||0),0),a=att.reduce((s,x)=>s+(+x.absent||0),0);
+  const done=DB.tasks.filter(x=>x.doneAt&&x.doneAt>=from&&x.doneAt<=to);
+  h+=`<section><h3>مؤشرات الأسبوع</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>نسبة حضور الطلاب</th><td>${e?Math.round((e-a)/e*1000)/10+'%':'—'}</td><th>مهام منجزة</th><td>${done.length}</td><th>مهام متأخرة</th><td>${st.over}</td></tr><tr><th>زيارات صفية</th><td>${rowsFor('visits',from,to).length}</td><th>حالات سلوك</th><td>${rowsFor('incidents',from,to).length}</td><th>اجتماعات</th><td>${rowsFor('meetings',from,to).length}</td></tr><tr><th>أنشطة</th><td>${rowsFor('activities',from,to).length}</td><th>تواصل أولياء أمور</th><td>${rowsFor('parents',from,to).length}</td><th>إنجاز خطة التحسين</th><td>${st.actPct==null?'—':st.actPct+'%'}</td></tr></table></section>`;
+  h+=`<section><h3>المهام المنجزة</h3>${ptable('tasks',done)}</section><section><h3>المهام المتأخرة</h3>${ptable('tasks',DB.tasks.filter(x=>isOver('tasks',x)))}</section>`;
+  ['visits','incidents','meetings','activities'].forEach(c=>h+=`<section><h3>${S[c].t}</h3>${ptable(c,rowsFor(c,from,to))}</section>`);
+  h+=`<section><h3>الأسبوع القادم</h3>${ptable('tasks',DB.tasks.filter(x=>x.status!=='مكتملة'&&x.due>to&&x.due<=addDays(to,7)))}</section>`}
+ else if(type==='summary'){const st=stats();h=printHead('الملخص العام',range);
+  h+=`<section><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>نسبة الحضور (30 يوماً)</th><td>${st.attRate??'—'}${st.attRate!=null?'%':''}</td><th>إنجاز المهام</th><td>${st.taskPct??'—'}${st.taskPct!=null?'%':''}</td></tr><tr><th>المهام المتأخرة</th><td>${st.over}</td><th>حالات مفتوحة</th><td>${st.incOpen}</td></tr><tr><th>زيارات هذا الشهر</th><td>${st.visM}</td><th>المراجعة الذاتية</th><td>${st.review??'—'}${st.review!=null?'%':''}</td></tr></table></section>`;
+  h+=`<section><h3>حسب المجال</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المجال</th><th>المهام</th><th>المنجز</th><th>إجراءات التحسين</th><th>المراجعة الذاتية</th></tr>${DOMAINS.map(d=>{const a=DB.tasks.filter(x=>x.domain===d);return `<tr><td>${d}</td><td>${a.length}</td><td>${a.filter(x=>x.status==='مكتملة').length}</td><td>${DB.actions.filter(x=>x.domain===d).length}</td><td>${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</td></tr>`}).join('')}</table></section>`}
+ else if(type==='review'){h=printHead('المراجعة الذاتية','متوسط عام: '+(reviewPct()??'—')+(reviewPct()!=null?'%':''));
+  DOMAINS.forEach(d=>{h+=`<section><h3>${d} — ${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المؤشر</th><th>التقدير</th><th>الشواهد</th></tr>${REVIEW[d].map((q,i)=>{const v=(DB.review[d]||{})[i]||{};return `<tr><td>${esc(q)}</td><td>${({2:'متحقق',1:'متحقق جزئياً',0:'غير متحقق'})[v.s]||'—'}</td><td>${esc(v.n||'')}</td></tr>`}).join('')}</table></section>`})}
+ else if(S[type]){let r=rowsFor(type,from,to);h=printHead(S[type].t,range)+`<section>${ptable(type,r)}</section>`}
+ $('#printArea').innerHTML=h+sig();setTimeout(()=>window.print(),50)}
+
+/* ---------- Sample data (clearly labeled) ---------- */
+function loadSample(){if(hasSample()&&!confirm('توجد بيانات تجريبية بالفعل. إضافة المزيد؟'))return;const t=today(),sm={sample:true};const P=(c,o)=>DB[c].push({id:uid(),...sm,...o});
+ DB.templates.slice(0,8).forEach((x,i)=>P('tasks',{title:x.title,domain:x.domain,period:x.period,due:addDays(t,i-3),priority:i%3?'متوسطة':'عالية',status:i<2?'مكتملة':i===3?'قيد التنفيذ':'جديدة',owner:'مدير المدرسة',recur:'لا يتكرر'}));
+ for(let d=0;d<5;d++)['الأول/1','الثاني/1','الثالث/1'].forEach((c,j)=>P('attendance',{date:addDays(t,-d),cls:c,enrolled:30,absent:(d+j)%4+1,late:j,excused:0}));
+ P('visits',{date:addDays(t,-2),teacher:'معلم (مثال)',subject:'الرياضيات',cls:'الثاني/1',type:'إشرافية',rating:4,strengths:'إدارة صف جيدة',improve:'تنويع التقويم'});
+ P('incidents',{date:addDays(t,-1),student:'طالب (مثال)',cls:'الأول/1',type:'تأخر متكرر',degree:'الأولى',status:'مفتوحة',action:'تواصل مع ولي الأمر'});
+ P('meetings',{date:addDays(t,-4),title:'اجتماع المعلمين (مثال)',type:'المعلمين',domain:'الإدارة المدرسية',minutes:'مناقشة نتائج التقويم',decisions:'تفعيل الخطط العلاجية'});
+ P('activities',{title:'مسابقة القراءة (مثال)',type:'ثقافي',date:addDays(t,6),owner:'رائد النشاط',participants:25,status:'مخطط'});
+ P('events',{title:'اجتماع أولياء الأمور (مثال)',kind:'فعالية مدرسية',date:addDays(t,10),status:'مخطط'});
+ P('actions',{action:'رفع نسبة المواظبة عبر برنامج تحفيزي (مثال)',domain:'نواتج التعلم',owner:'الموجه الطلابي',deadline:addDays(t,20),status:'قيد التنفيذ',progress:40});
+ audit('تحميل بيانات تجريبية','settings',{title:'بيانات تجريبية'});save();render();toast('حُمّلت بيانات تجريبية معلَّمة')}
+function clearSample(){let n=0;COLS.forEach(c=>{const b=DB[c].length;DB[c]=DB[c].filter(x=>!x.sample);n+=b-DB[c].length});audit('حذف البيانات التجريبية','settings',{title:n+' سجل'});save();render();toast('حُذف '+n+' سجل تجريبي')}
+
+/* ---------- Import with integrity checks ---------- */
+async function sha(s){if(!crypto.subtle)return'';const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function exportJSON(){const data={...DB};const body=JSON.stringify(data);const wrap={format:'school-leader-dashboard-backup',version:APP_VERSION,exported:new Date().toISOString(),sha256:await sha(body),data};
+ download(`نسخة-احتياطية-لوحة-القيادة-${today()}.json`,JSON.stringify(wrap),'application/json');DB.settings.lastBackup=today();save()}
+async function importJSON(file){try{if(file.size>20e6)throw new Error('الملف كبير جداً');const txt=await file.text();let w;try{w=JSON.parse(txt)}catch(e){throw new Error('الملف ليس JSON صالحاً')}
+ let data=w;if(w&&w.format==='school-leader-dashboard-backup'){data=w.data;if(w.sha256&&crypto.subtle){const h=await sha(JSON.stringify(data));if(h!==w.sha256&&!confirm('تحذير: بصمة الملف لا تطابق محتواه (ربما عُدّل أو تلف). المتابعة؟'))return}}
+ if(!data||data.app!=='school-leader-dashboard')throw new Error('الملف ليس نسخة احتياطية من هذا التطبيق');
+ const n=normalize(data);const cnt=COLS.reduce((s,c)=>s+n[c].length,0);
+ if(!confirm(`سيتم استبدال البيانات الحالية بالنسخة المستوردة (${cnt} سجل). يُنصح بتصدير نسخة من بياناتك الحالية أولاً. متابعة؟`))return;
+ DB=n;audit('استيراد نسخة احتياطية','settings',{title:cnt+' سجل'});save();render();toast('تم الاستيراد بنجاح')}catch(e){alert('تعذّر الاستيراد: '+e.message)}}
+function setLogo(file){if(!file||!/^image\//.test(file.type)){toast('اختر ملف صورة');return}const img=new Image(),u=URL.createObjectURL(file);
+ img.onload=()=>{const m=256,r=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);DB.settings.logo=c.toDataURL('image/png');URL.revokeObjectURL(u);audit('تحديث الشعار','settings',{title:'الشعار'});save();render()};
+ img.onerror=()=>toast('تعذّر قراءة الصورة');img.src=u}
+
+/* ---------- Event wiring ---------- */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
+ if(!e.target.closest('#bellPanel')&&!e.target.closest('#bellBtn'))$('#bellPanel').hidden=true;
+ if(e.target.closest('#nav a'))closeNav();
+ if(!b)return;const a=b.dataset.act,c=b.dataset.c,id=b.dataset.id;
+ const acts={
+  add:()=>openForm(c),edit:()=>openForm(c,DB[c].find(x=>x.id===id)),
+  done:()=>{const x=DB.tasks.find(t=>t.id===id);if(!x)return;const p=x.status;x.status='مكتملة';delete x.sample;maybeRecur(x,p);audit('إنجاز','tasks',x);save();render();if(!$('#bellPanel').hidden||b.closest('#bellPanel'))bell();toast('أُنجزت المهمة ✓')},
+  csv:()=>csv(c,DB[c]),xls:()=>xls([c]),xlsall:()=>xls(COLS),print:()=>doPrint(c),weekly:()=>doPrint('weekly'),
+  rprint:()=>doPrint($('#rpType').value,$('#rpFrom').value,$('#rpTo').value),
+  rcsv:()=>{const t=$('#rpType').value;if(S[t])csv(t,rowsFor(t,$('#rpFrom').value,$('#rpTo').value));else toast('اختر سجلاً محدداً لتصدير CSV، أو استخدم Excel لكل السجلات')},
+  auditcsv:()=>download('سجل-التغييرات.csv','\ufeff'+[['الوقت','العملية','القسم','العنصر']].concat(DB.audit.map(x=>[x.t,x.op,S[x.col]?.t||x.col,x.title])).map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv'),
+  tcreate:()=>{const ids=$$('[data-tp]:checked').map(x=>x.dataset.tp);if(!ids.length){toast('حدّد قالباً واحداً على الأقل');return}const st=$('#tplStart').value||today();
+   const off={'يومي':0,'أسبوعي':6,'شهري':29,'فصلي':89,'نهاية العام':179},rec={'يومي':'يومي','أسبوعي':'أسبوعي','شهري':'شهري','فصلي':'فصلي','نهاية العام':'لا يتكرر'};
+   ids.forEach(i=>{const t=DB.templates.find(x=>x.id===i);const n={id:uid(),created:new Date().toISOString(),title:t.title,domain:t.domain,period:t.period,due:addDays(st,off[t.period]||0),priority:'متوسطة',status:'جديدة',owner:'مدير المدرسة',recur:rec[t.period]};DB.tasks.push(n)});
+   audit('إنشاء من القوالب','tasks',{title:ids.length+' مهمة'});save();toast('أُنشئت '+ids.length+' مهمة');location.hash='#tasks'},
+  tadd:()=>{const ti=prompt('نص القالب الجديد:');if(!ti||!ti.trim())return;const p=prompt('التكرار ('+PERIODS.join('، ')+'):','أسبوعي');if(!PERIODS.includes(p)){toast('تكرار غير صالح');return}const d=prompt('المجال ('+DOMAINS.join('، ')+'):',DOMAINS[0]);if(!DOMAINS.includes(d)){toast('مجال غير صالح');return}
+   DB.templates.push({id:uid(),title:ti.trim().slice(0,200),period:p,domain:d});save();render()},
+  tdel:()=>{if(!confirm('حذف القالب؟'))return;DB.templates=DB.templates.filter(x=>x.id!==id);save();render()},
+  treset:()=>{if(!confirm('استبدال القوالب بالقوالب الافتراضية؟'))return;DB.templates=DEFAULT_TEMPLATES.map(t=>({id:uid(),...t}));save();render()},
+  occ:()=>{const y=new Date().getFullYear(),t=today();let n=0;OCCASIONS.forEach(o=>{if(DB.events.some(x=>x.title===o.title))return;let date='';if(o.md){date=y+'-'+o.md;if(date<t)date=(y+1)+'-'+o.md}
+   DB.events.push({id:uid(),title:o.title,kind:o.kind,date,status:'مخطط',notes:o.md?'موعد ميلادي ثابت سنوياً':'حدّد التاريخ وفق التقويم الدراسي المعتمد'});n++});audit('إضافة المناسبات المعتادة','events',{title:n+' مناسبة'});save();render();toast('أُضيفت '+n+' مناسبة — راجع التواريخ وحدّد غير المحدد منها')},
+  rvreset:()=>{if(!confirm('مسح تقييمات المراجعة الحالية لبدء دورة جديدة؟ (اطبع النسخة الحالية أولاً إن رغبت)'))return;DB.review={};audit('بدء دورة مراجعة','review',{title:'دورة جديدة'});save();render()},
+  rv2act:()=>{const d=b.dataset.d;let n=0;REVIEW[d].forEach((q,i)=>{const v=(DB.review[d]||{})[i];if(v&&(v.s==='0'||v.s==='1')&&!DB.actions.some(x=>x.action===q)){DB.actions.push({id:uid(),action:q,domain:d,owner:'',deadline:addDays(today(),30),status:'لم يبدأ',progress:0,indicator:'تحقق المؤشر في المراجعة القادمة'});n++}});
+   if(n){audit('إنشاء إجراءات من المراجعة','actions',{title:n+' إجراء'});save();toast('أُنشئ '+n+' إجراء — حدّد المسؤول');location.hash='#actions'}else toast('لا توجد مؤشرات غير متحققة/جزئية جديدة')},
+  export:exportJSON,import:()=>$('#fileIn').click(),logo:()=>$('#logoIn').click(),nologo:()=>{DB.settings.logo='';save();render()},
+  sample:loadSample,clearSample,wipe:()=>{if(prompt('لمسح كل البيانات نهائياً اكتب: مسح')!=='مسح')return;DB=blank();save();render();toast('مُسحت البيانات')},
+  notif:async()=>{if(!('Notification' in window)){toast('المتصفح لا يدعم الإشعارات');return}const p=await Notification.requestPermission();toast(p==='granted'?'فُعّلت الإشعارات':'لم تُفعّل الإشعارات');render()},
+  chime:()=>{const m=DB.settings.mute;DB.settings.mute=false;chime();DB.settings.mute=m},bellclose:()=>$('#bellPanel').hidden=true,
+  install:async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;chrome()}};
+ acts[a]&&acts[a]()});
+document.addEventListener('input',e=>{const el=e.target;
+ if(el.dataset.f){const c=view();flt[c][el.dataset.f]=el.value;clearTimeout(el._t);el._t=setTimeout(()=>{const pos=el.selectionStart;render();const n=$(`[data-f="${el.dataset.f}"]`);if(n){n.focus();if(n.type==='search'&&pos!=null)n.setSelectionRange(pos,pos)}},el.type==='search'?250:0)}
+ if(el.dataset.tt){const t=DB.templates.find(x=>x.id===el.dataset.tt);if(t&&el.value.trim()){t.title=el.value.slice(0,200);save()}}
+ if(el.dataset.rvn){const[d,i]=el.dataset.rvn.split('|');DB.review[d]=DB.review[d]||{};DB.review[d][i]={...(DB.review[d][i]||{}),n:el.value};DB.review._date=today();save()}});
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset.allp)$$(`[data-p="${el.dataset.allp}"]`).forEach(x=>x.checked=el.checked);
+ if(el.id==='s_rt'){DB.settings.remindTime=el.value||'07:30';save()}if(el.id==='s_mute'){DB.settings.mute=el.checked;save()}if(el.id==='s_hj'){DB.settings.hijri=el.checked;save();chrome()}});
+document.addEventListener('click',e=>{const s=e.target.closest('[data-rv]');if(!s)return;const[d,i]=s.dataset.rv.split('|');DB.review[d]=DB.review[d]||{};const cur=DB.review[d][i]||{};
+ DB.review[d][i]={...cur,s:cur.s===s.dataset.s?'':s.dataset.s};DB.review._date=today();audit('تقييم مؤشر','review',{title:d});save();
+ const y=window.scrollY;render();window.scrollTo(0,y)});
+document.addEventListener('submit',e=>{if(e.target.id!=='setForm')return;e.preventDefault();const f=e.target;['school','principal','region','year'].forEach(k=>DB.settings[k]=f.elements[k].value.trim().slice(0,120));audit('تحديث الإعدادات','settings',{title:'بيانات المدرسة'});save();render();toast('حُفظت الإعدادات')});
+$('#fileIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&importJSON(f)};
+$('#logoIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&setLogo(f)};
+let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{searchQ=e.target.value.trim();render()},200)});
+$('#q').addEventListener('keydown',e=>{if(e.key==='Escape'){e.target.value='';searchQ='';render()}});
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)&&!$('#dlg').open){e.preventDefault();$('#q').focus()}
+ if(e.key==='Escape'){$('#bellPanel').hidden=true;closeNav()}});
+$('#bellBtn').onclick=()=>{const p=$('#bellPanel');if(p.hidden)bell();else p.hidden=true};
+const setTheme=t=>{document.documentElement.dataset.theme=t;$('#themeBtn').textContent=t==='dark'?'☀️':'🌙';document.querySelector('meta[name=theme-color]').content=t==='dark'?'#0b1220':'#0f2747'};
+$('#themeBtn').onclick=()=>{DB.settings.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';setTheme(DB.settings.theme);save()};
+function closeNav(){$('#nav').classList.remove('open');$('#menuBtn').setAttribute('aria-expanded','false')}
+$('#menuBtn').onclick=()=>{const o=$('#nav').classList.toggle('open');$('#menuBtn').setAttribute('aria-expanded',o)};
+window.addEventListener('hashchange',()=>{searchQ='';$('#q').value='';render();$('#main').focus({preventScroll:true});window.scrollTo(0,0)});
+const net=()=>{$('#netInd').textContent=navigator.onLine?'🟢 متصل':'🟠 دون اتصال'};addEventListener('online',net);addEventListener('offline',net);
+window.addEventListener('storage',e=>{if(e.key===KEY){load();render()}});
+let deferredInstall=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;chrome()});
+
+/* ---------- Service worker + update banner ---------- */
+if('serviceWorker' in navigator&&location.protocol!=='file:'){
+ navigator.serviceWorker.register('sw.js').then(reg=>{
+  const show=()=>{$('#updateBar').hidden=false};
+  if(reg.waiting&&navigator.serviceWorker.controller)show();
+  reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)show()})});
+  setInterval(()=>reg.update().catch(()=>{}),30*60*1000);
+  $('#updBtn').onclick=()=>{(reg.waiting||reg.installing)?.postMessage('skip');setTimeout(()=>location.reload(),600)};
+ }).catch(e=>console.warn('SW',e));
+ let reloading=false;const had=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||reloading)return;reloading=true;location.reload()});
+}
+
+/* ---------- Init ---------- */
+load();setTheme(DB.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));net();render();
+setTimeout(checkReminders,1500);setInterval(checkReminders,30000);

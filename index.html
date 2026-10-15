@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>لوحة قيادة المدرسة</title>
+<meta name="description" content="لوحة قيادة لمدير المدرسة: المهام، الزيارات الصفية، الاجتماعات، السلوك، الحضور، المراجعة الذاتية والتقارير — تعمل دون اتصال">
+<meta name="theme-color" content="#0f2747">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+<div id="updateBar" class="banner gold" hidden>يتوفر إصدار جديد من التطبيق. <button id="updBtn" class="btn sm">تحديث الآن</button></div>
+<div id="sampleBar" class="banner warn" hidden>⚠️ تعرض اللوحة <b>بيانات تجريبية للتوضيح فقط</b> وليست بيانات حقيقية. <button class="btn sm" data-act="clearSample">حذف البيانات التجريبية</button></div>
+<header class="top">
+  <button class="iconbtn menu" id="menuBtn" aria-label="القائمة" aria-expanded="false">☰</button>
+  <img id="topLogo" class="logo" alt="" hidden>
+  <div class="ttl"><h1 id="schoolTitle">لوحة قيادة المدرسة</h1><div id="todayDate" class="muted small"></div></div>
+  <div class="search"><input id="q" type="search" placeholder="بحث في كل السجلات… ( / )" aria-label="بحث"></div>
+  <span id="saveInd" class="save" title="حالة الحفظ">✓ محفوظ</span>
+  <span id="netInd" class="net"></span>
+  <button class="iconbtn bell" id="bellBtn" aria-label="التنبيهات" aria-haspopup="true">🔔<span id="bellBadge" class="badge" hidden></span></button>
+  <button class="iconbtn" id="themeBtn" aria-label="تبديل الوضع الليلي/النهاري">🌙</button>
+</header>
+<div class="layout">
+<nav id="nav" class="side" aria-label="الأقسام">
+  <a href="#dashboard" data-v="dashboard">📊 الرئيسية</a>
+  <a href="#tasks" data-v="tasks">✅ المهام <span class="pill red" id="navOver" hidden></span></a>
+  <a href="#templates" data-v="templates">📋 قوالب المهام</a>
+  <div class="sep">السجلات</div>
+  <a href="#attendance" data-v="attendance">🧑‍🎓 حضور الطلاب</a>
+  <a href="#visits" data-v="visits">🏫 الزيارات الصفية</a>
+  <a href="#followups" data-v="followups">👩‍🏫 متابعة المعلمين</a>
+  <a href="#incidents" data-v="incidents">⚠️ السلوك والحوادث</a>
+  <a href="#meetings" data-v="meetings">🗓️ الاجتماعات والمحاضر</a>
+  <div class="sep">الأنشطة والمناسبات</div>
+  <a href="#events" data-v="events">📅 تقويم المناسبات</a>
+  <a href="#activities" data-v="activities">🏅 النشاط الطلابي</a>
+  <a href="#parents" data-v="parents">👪 تواصل أولياء الأمور</a>
+  <a href="#committees" data-v="committees">🧩 اللجان والتكليفات</a>
+  <a href="#duty" data-v="duty">🕒 المناوبة والإشراف</a>
+  <a href="#recognitions" data-v="recognitions">🏆 تكريم المنسوبين</a>
+  <div class="sep">المراجعة والتحسين</div>
+  <a href="#review" data-v="review">🔎 المراجعة الذاتية</a>
+  <a href="#actions" data-v="actions">🎯 إجراءات خطة التحسين</a>
+  <div class="sep">أخرى</div>
+  <a href="#reports" data-v="reports">🖨️ التقارير والتصدير</a>
+  <a href="#audit" data-v="audit">🕓 سجل التغييرات</a>
+  <a href="#settings" data-v="settings">⚙️ الإعدادات والنسخ الاحتياطي</a>
+  <div class="ver muted small" id="verLbl"></div>
+</nav>
+<div id="bellPanel" class="bellp card" hidden role="dialog" aria-label="التنبيهات"></div>
+<main id="main" tabindex="-1"></main>
+</div>
+<div id="printArea" class="print-area"></div>
+<dialog id="dlg"><form id="dlgForm" method="dialog" novalidate></form></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="fileIn" accept="application/json,.json" hidden>
+<input type="file" id="logoIn" accept="image/*" hidden>
+<script src="app.js"></script>
+</body>
+</html>
