@@ -219,3 +219,4 @@ dialog::backdrop{background:#0f274799}
 @media (max-width:380px){.rings{grid-template-columns:repeat(2,1fr)}}
 .chart{direction:ltr}.chart text{unicode-bidi:plaintext}
 .tside .btns{flex-wrap:nowrap}.tdue{flex:1}
+[hidden]{display:none!important}
