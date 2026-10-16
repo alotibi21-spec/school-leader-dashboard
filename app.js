@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.5.0';
+const APP_VERSION='1.6.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -126,7 +126,14 @@ const lbl=(c,k)=>k==='rate'?'نسبة الحضور':(S[c].f.find(x=>x.k===k)||{}
 
 /* ---------- Ready-made templates (editable) ---------- */
 const T=(p,d,t)=>({period:p,domain:d,title:t});
-const DEFAULT_TEMPLATES=[
+const TPL_V2=[
+ T('يومي','الإدارة المدرسية','متابعة تفعيل الإشراف (الطابور – الفسحة – الصلاة)'),
+ T('يومي','الإدارة المدرسية','متابعة تعاميم نور'),
+ T('يومي','الإدارة المدرسية','متابعة بريد المدرسة'),
+ T('يومي','الإدارة المدرسية','متابعة برنامج حضوري'),
+ T('أسبوعي','الإدارة المدرسية','متابعة برنامج فارس والاعتمادات'),
+ T('أسبوعي','الإدارة المدرسية','متابعة عمل اللجان والفرق')];
+const DEFAULT_TEMPLATES=[...TPL_V2,
  T('يومي','الإدارة المدرسية','متابعة حضور وانصراف المنسوبين وانتظام الطابور الصباحي'),
  T('يومي','الإدارة المدرسية','مراجعة البريد والتعاميم الواردة عبر الأنظمة الرسمية وإحالتها'),
  T('يومي','البيئة المدرسية','جولة تفقدية على المرافق ودورات المياه والمقصف والفناء'),
@@ -179,14 +186,14 @@ const REVIEW={
 
 /* ---------- Store ---------- */
 const COLS=Object.keys(S);
-function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true,stages:[],gender:'',supervisor:'',supervisorMobile:'',setupDone:false},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
+function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true,stages:[],gender:'',supervisor:'',supervisorMobile:'',setupDone:false},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),tplMerged:TPL_V2.map(t=>t.period+'|'+t.title),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
 let DB;
 function load(){try{const r=localStorage.getItem(KEY);DB=r?normalize(JSON.parse(r)):blank()}catch(e){console.warn(e);DB=blank()}}
 function normalize(d){const b=blank();if(!d||typeof d!=='object')return b;
  const o={...b,...d,settings:{...b.settings,...(d.settings||{})}};
  COLS.forEach(c=>{o[c]=Array.isArray(d[c])?d[c].filter(x=>x&&typeof x==='object').map(x=>({...x,id:String(x.id||uid())})):[]});
  o.templates=Array.isArray(d.templates)?d.templates.filter(t=>t&&t.title):b.templates;
- o.review=d.review&&typeof d.review==='object'?d.review:{};o.audit=Array.isArray(d.audit)?d.audit.slice(-1000):[];o.notified=d.notified||{};return o}
+ o.tplMerged=Array.isArray(d.tplMerged)?d.tplMerged.map(String):[];o.review=d.review&&typeof d.review==='object'?d.review:{};o.audit=Array.isArray(d.audit)?d.audit.slice(-1000):[];o.notified=d.notified||{};return o}
 let saveT;
 function save(){const ind=$('#saveInd');ind.textContent='… جارٍ الحفظ';ind.className='save saving';clearTimeout(saveT);
  saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));ind.textContent='✓ محفوظ '+new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});ind.className='save'}
@@ -196,6 +203,11 @@ function itemTitle(c,x){if(!x)return'';return String(x.title||x.action||x.name||
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200)}
 const hasSample=()=>COLS.some(c=>DB[c].some(x=>x.sample));
 
+/* One-time merge of new built-in templates into existing data: adds only missing titles, never edits or re-adds deleted ones */
+
+function mergeTemplates(){const done=new Set(DB.tplMerged||[]);let n=0;const norm=t=>String(t).replace(/\s+/g,' ').trim();
+ TPL_V2.forEach(t=>{const key=t.period+'|'+t.title;if(done.has(key))return;if(!DB.templates.some(x=>norm(x.title)===norm(t.title))){DB.templates.push({id:uid(),...t});n++}done.add(key)});
+ DB.tplMerged=[...done];if(n){audit('إضافة قوالب جديدة','templates',{title:n+' قالب'});save()}return n}
 /* ---------- Derived ---------- */
 const isOver=(c,x)=>{const k=S[c].date;return (c==='tasks'||c==='actions'||c==='oplan')&&x[k]&&x[k]<today()&&x.status!==DONE[c]};
 const attRate=x=>{const e=+x.enrolled,a=+x.absent;return e>0?Math.round((e-a)/e*1000)/10:null};
@@ -526,7 +538,7 @@ async function importJSON(file){try{if(file.size>20e6)throw new Error('المل�
  if(!data||data.app!=='school-leader-dashboard')throw new Error('الملف ليس نسخة احتياطية من هذا التطبيق');
  const n=normalize(data);const cnt=COLS.reduce((s,c)=>s+n[c].length,0);const wf=Array.isArray(w&&w.files)?w.files:null;
  if(!confirm(`سيتم استبدال البيانات الحالية بالنسخة المستوردة (${cnt} سجل${wf?' و'+wf.length+' ملف شواهد':''}). يُنصح بتصدير نسخة من بياناتك الحالية أولاً. متابعة؟`))return;
- DB=n;let nf=0;if(wf)nf=await restoreFiles(wf);audit('استيراد نسخة احتياطية','settings',{title:cnt+' سجل، '+nf+' ملف'});save();render();toast('تم الاستيراد بنجاح'+(wf?' ('+nf+' ملف)':''))}catch(e){alert('تعذّر الاستيراد: '+e.message)}}
+ DB=n;mergeTemplates();let nf=0;if(wf)nf=await restoreFiles(wf);audit('استيراد نسخة احتياطية','settings',{title:cnt+' سجل، '+nf+' ملف'});save();render();toast('تم الاستيراد بنجاح'+(wf?' ('+nf+' ملف)':''))}catch(e){alert('تعذّر الاستيراد: '+e.message)}}
 function setLogo(file){if(!file||!/^image\//.test(file.type)){toast('اختر ملف صورة');return}const img=new Image(),u=URL.createObjectURL(file);
  img.onload=()=>{const m=256,r=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);DB.settings.logo=c.toDataURL('image/png');URL.revokeObjectURL(u);audit('تحديث الشعار','settings',{title:'الشعار'});save();render()};
  img.onerror=()=>toast('تعذّر قراءة الصورة');img.src=u}
@@ -733,6 +745,6 @@ if('serviceWorker' in navigator&&location.protocol!=='file:'){
 
 /* ---------- Init ---------- */
 loadFiles().then(()=>{if(FILES.length)render()});
-load();if(!DB.settings.setupDone&&DB.settings.school)DB.settings.setupDone=true;setTheme(DB.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));net();render();
+load();mergeTemplates();if(!DB.settings.setupDone&&DB.settings.school)DB.settings.setupDone=true;setTheme(DB.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));net();render();
 if(!DB.settings.setupDone)setupWizard();
 setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
