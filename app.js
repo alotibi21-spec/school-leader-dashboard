@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.9.0';
+const APP_VERSION='1.9.1';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -208,9 +208,11 @@ function normalize(d){const b=blank();if(!d||typeof d!=='object')return b;
  COLS.forEach(c=>{o[c]=Array.isArray(d[c])?d[c].filter(x=>x&&typeof x==='object').map(x=>({...x,id:String(x.id||uid())})):[]});
  o.templates=Array.isArray(d.templates)?d.templates.filter(t=>t&&t.title):b.templates;
  o.comMerged=Array.isArray(d.comMerged)?d.comMerged.map(String):[];o.tplMerged=Array.isArray(d.tplMerged)?d.tplMerged.map(String):[];o.review=d.review&&typeof d.review==='object'?d.review:{};o.audit=Array.isArray(d.audit)?d.audit.slice(-1000):[];o.notified=d.notified||{};return o}
-let saveT;
-function save(){const ind=$('#saveInd');ind.textContent='… جارٍ الحفظ';ind.className='save saving';clearTimeout(saveT);
- saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));ind.textContent='✓ محفوظ '+new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});ind.className='save'}
+let saveT,savePend=false;
+function flushSave(){if(!savePend)return;try{localStorage.setItem(KEY,JSON.stringify(DB));savePend=false}catch(e){}}
+['pagehide','beforeunload','blur'].forEach(ev=>addEventListener(ev,flushSave));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushSave()});document.addEventListener('focusout',()=>setTimeout(flushSave,0));
+function save(){const ind=$('#saveInd');ind.textContent='… جارٍ الحفظ';ind.className='save saving';clearTimeout(saveT);savePend=true;
+ saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));savePend=false;ind.textContent='✓ محفوظ '+new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});ind.className='save'}
  catch(e){ind.textContent='✗ تعذّر الحفظ';ind.className='save';toast('تعذّر الحفظ: قد تكون مساحة التخزين ممتلئة (قلّل حجم الشعار أو صدّر نسخة احتياطية).')}},250)}
 function audit(op,col,item){DB.audit.push({t:new Date().toISOString(),op,col,title:itemTitle(col,item)});if(DB.audit.length>1000)DB.audit.splice(0,DB.audit.length-1000)}
 function itemTitle(c,x){if(!x)return'';return String(x.title||x.action||x.name||x.program||x.goal||x.teacher||x.student||x.parent||x.cls||x.staff||x.day||'').slice(0,80)}
@@ -464,7 +466,7 @@ ${stageGenderFields(s)}
  <div class="btns"><button class="btn gold" data-act="export">تصدير نسخة احتياطية JSON</button><button class="btn ghost" data-act="import">استيراد نسخة احتياطية</button></div></div>
  <div class="card"><h3>البيانات التجريبية والتهيئة</h3><p class="small muted">البيانات التجريبية معلَّمة بشارة «تجريبي» وتظهر لافتة تنبيه أثناء وجودها، ويمكن حذفها بضغطة.</p>
  <div class="btns"><button class="btn ghost" data-act="sample">تحميل بيانات تجريبية</button><button class="btn ghost" data-act="clearSample">حذف البيانات التجريبية</button><button class="btn red" data-act="wipe">مسح كل البيانات</button></div></div></div>
- <div class="card small muted"><b style="color:var(--text)">${CREDIT}</b><br>الإصدار ${APP_VERSION} — يعمل دون اتصال بعد أول تحميل، ويمكن تثبيته من قائمة المتصفح «تثبيت التطبيق / إضافة إلى الشاشة الرئيسية». <button class="btn sm ghost" data-act="install" id="instBtn" hidden>تثبيت التطبيق</button></div>`}
+ <div class="card small muted"><b class="credit-txt">${CREDIT}</b><br>الإصدار ${APP_VERSION} — يعمل دون اتصال بعد أول تحميل، ويمكن تثبيته من قائمة المتصفح «تثبيت التطبيق / إضافة إلى الشاشة الرئيسية». <button class="btn sm ghost" data-act="install" id="instBtn" hidden>تثبيت التطبيق</button></div>`}
 
 function searchView(q){const ql=q.toLowerCase();let out='',n=0;
  COLS.forEach(c=>{const r=DB[c].filter(x=>Object.entries(x).some(([k,v])=>k!=='id'&&typeof v!=='object'&&String(v).toLowerCase().includes(ql)));if(r.length){n+=r.length;out+=`<div class="card"><h3>${S[c].t} (${r.length})</h3>${table(c,r.slice(0,50),S[c].cols,q)}</div>`}});
@@ -527,7 +529,7 @@ function xls(cols){let x='<?xml version="1.0" encoding="UTF-8"?><?mso-applicatio
 /* ---------- Print ---------- */
 function printHead(title,sub){const s=DB.settings;return `<div class="ph">${s.logo?`<img src="${s.logo}" alt="">`:''}<div><div style="font-size:11pt">المملكة العربية السعودية — وزارة التعليم${s.region?' — '+esc(s.region):''}</div><div style="font-weight:800;font-size:14pt">${esc(s.school||'')}</div>${supInfo()?`<div style="font-size:10pt">${esc(supInfo())}</div>`:''}<div style="font-size:10pt">${schoolMeta()?esc(schoolMeta())+' — ':''}${s.year?'العام الدراسي '+esc(s.year)+' — ':''}تاريخ الطباعة: ${fmtPlain(today())}</div></div></div><h2>${esc(title)}</h2>${sub?`<p>${sub}</p>`:''}${hasSample()?'<p style="color:#b45309"><b>تنبيه: يتضمن التقرير بيانات تجريبية للتوضيح فقط.</b></p>':''}`}
 function ptable(c,rows){const keys=S[c].cols;const ev=rows.some(x=>filesOf(c,x.id).length);return rows.length?`<table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><thead><tr>${keys.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}${ev?'<th>الشواهد</th>':''}</tr></thead><tbody>${rows.map(x=>`<tr>${keys.map(k=>`<td>${esc(plainVal(c,k,x))}${k===keys[0]&&x.sample?' (تجريبي)':''}</td>`).join('')}${ev?`<td>${evPrint(c,x.id)}</td>`:''}</tr>`).join('')}</tbody></table>`:'<p>لا توجد سجلات.</p>'}
-const sig=()=>`<div class="sig"><div>${leaderLbl()}: ${esc(DB.settings.principal||'....................')}</div><div>التوقيع: ....................</div><div>الختم</div></div><div style="text-align:center;font-size:9pt;color:#555;margin-top:24px;border-top:1px solid #ccc;padding-top:6px">${CREDIT}</div>`;
+const sig=()=>`<div class="sig"><div>${leaderLbl()}: ${esc(DB.settings.principal||'....................')}</div><div>التوقيع: ....................</div><div>الختم</div></div><div class="credit-print" style="text-align:center;font-size:9pt;color:#c00000;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;margin-top:24px;border-top:1px solid #ccc;padding-top:6px">${CREDIT}</div>`;
 function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${from?fmtPlain(from):'…'} — ${to?fmtPlain(to):'…'}`:'';
  if(type==='weekly'){to=today();from=addDays(to,-6);const st=stats();h=printHead('التقرير الأسبوعي','الفترة: '+fmtPlain(from)+' — '+fmtPlain(to));
   const att=rowsFor('attendance',from,to),e=att.reduce((s,x)=>s+(+x.enrolled||0),0),a=att.reduce((s,x)=>s+(+x.absent||0),0);

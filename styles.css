@@ -232,3 +232,8 @@ dialog::backdrop{background:#0f274799}
 .offt li>*{vertical-align:middle}.offt .tk{display:inline-block;margin-inline-end:6px}.offt .tk input{width:18px;height:18px;accent-color:var(--ok)}
 .offt li.dn .tx{color:var(--muted);text-decoration:line-through}.offt .evb{margin-inline-start:6px;padding:0 8px}
 @media print{.print-area ol,.print-area ul{line-height:1.9}.print-area section h3{font-size:12pt}}
+
+.credit,.credit-txt{color:#c00000!important;font-weight:700}
+[data-theme=dark] .credit,[data-theme=dark] .credit-txt{color:#ff6b6b!important}
+.credit-print{color:#c00000!important}
+@media print{.credit,.credit-txt,.credit-print{color:#c00000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
