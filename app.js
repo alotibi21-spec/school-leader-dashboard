@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.4.0';
+const APP_VERSION='1.5.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -266,7 +266,7 @@ function listView(c){const sc=S[c];const F=flt[c]=flt[c]||{q:'',status:'',domain
  ${hasSt?`<select data-f="status" aria-label="الحالة"><option value="">كل الحالات</option>${(c==='tasks'||c==='actions'||c==='oplan')?`<option value="__over" ${F.status==='__over'?'selected':''}>المتأخرة فقط</option>`:''}${hasSt.opts.map(o=>`<option ${o===F.status?'selected':''}>${o}</option>`).join('')}</select>`:''}
  ${hasDom?`<select data-f="domain" aria-label="المجال"><option value="">كل المجالات</option>${DOMAINS.map(o=>`<option ${o===F.domain?'selected':''}>${o}</option>`).join('')}</select>`:''}
  <label class="small">من <input type="date" data-f="from" value="${F.from}"></label><label class="small">إلى <input type="date" data-f="to" value="${F.to}"></label></div>${extra}
- ${rows.length?table(c,rows,sc.cols,F.q):`<div class="empty">لا توجد سجلات${DB[c].length?' مطابقة للتصفية':' بعد. ابدأ بإضافة '+sc.one+'.'}</div>`}</div>`}
+ ${c==='tasks'?taskTabs(F)+(rows.length?taskCards(rows.filter(x=>!F.period||x.period===F.period),F):''):''}${c==='tasks'&&rows.length?'':rows.length?table(c,rows,sc.cols,F.q):`<div class="empty">لا توجد سجلات${DB[c].length?' مطابقة للتصفية':' بعد. ابدأ بإضافة '+sc.one+'.'}</div>`}</div>`}
 function table(c,rows,cols,hl){return `<div class="tbl-wrap"><table class="resp"><thead><tr>${cols.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(x=>`<tr class="${isOver(c,x)?'over':''}">${cols.map(k=>`<td data-l="${esc(lbl(c,k))}">${cellVal(c,k,x,hl)}${k===cols[0]&&x.sample?' <span class="pill sample">تجريبي</span>':''}${k===S[c].date&&isOver(c,x)?' <span class="pill red">متأخرة</span>':''}</td>`).join('')}<td data-l="">${c==='tasks'&&x.status!=='مكتملة'?`<button class="btn sm gold" data-act="done" data-c="${c}" data-id="${x.id}" title="تعليم كمكتملة">✓</button> `:''}${evBtn(c,x.id)} <button class="btn sm ghost" data-act="edit" data-c="${c}" data-id="${x.id}">تعديل</button></td></tr>`).join('')}</tbody></table></div>`}
 
 function stats(){const t=today(),m=t.slice(0,7),wk=addDays(t,-6),d30=addDays(t,-29);
@@ -281,6 +281,52 @@ function stats(){const t=today(),m=t.slice(0,7),wk=addDays(t,-6),d30=addDays(t,-
   review:reviewPct(),gProg:DB.guidance.filter(x=>x.date>=addDays(t,-89)&&x.date<=t),gOpen:DB.gcases.filter(x=>x.status!=='مغلقة').length,gDue:DB.gcases.filter(x=>x.status!=='مغلقة'&&x.next&&x.next<=t).length,gPlan:DB.gplan.length?Math.round(DB.gplan.filter(x=>x.status==='منفذ').length/DB.gplan.length*100):null,ev:FILES.length,opPct:DB.oplan.length?Math.round(DB.oplan.reduce((a,x)=>a+(x.status==='منجز'?100:+x.progress||0),0)/DB.oplan.length):null,opOver:DB.oplan.filter(x=>isOver('oplan',x)).length}}
 function reviewPct(dom){const ds=dom?[dom]:DOMAINS;let s=0,n=0;ds.forEach(d=>REVIEW[d].forEach((_,i)=>{const v=(DB.review[d]||{})[i];if(v&&v.s!=null&&v.s!==''){s+=+v.s;n++}}));return n?Math.round(s/(n*2)*100):null}
 const K=(l,v,s,cl='')=>`<div class="kpi ${cl}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+/* ---------- Hand-made SVG charts ---------- */
+const ratio=(a,f)=>a.length?Math.round(a.filter(f).length/a.length*100):null;
+const avgProg=(a,done)=>a.length?Math.round(a.reduce((s,x)=>s+(x.status===done?100:+x.progress||0),0)/a.length):null;
+function ring(l,p,sub,href){const r=34,C=2*Math.PI*r,v=p==null?0:Math.max(0,Math.min(100,p));const col=p==null?'var(--line)':v>=75?'var(--ok)':v>=40?'var(--gold)':'var(--bad)';
+ return `<a class="ring" href="${href||'#'}" title="${esc(l)}"><svg viewBox="0 0 84 84" role="img" aria-label="${esc(l)} ${p==null?'لا بيانات':v+'%'}"><circle cx="42" cy="42" r="${r}" class="rg-bg"/><circle cx="42" cy="42" r="${r}" class="rg-fg" style="stroke:${col};--c:${C.toFixed(1)};--o:${(C*(1-v/100)).toFixed(1)}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-v/100)).toFixed(1)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" class="rg-t">${p==null?'—':v+'%'}</text></svg><div class="rg-l">${esc(l)}</div><div class="rg-s">${p==null?'لا توجد بيانات':esc(sub||'')}</div></a>`}
+function chartsBlock(){const t=today();
+ const rings=[
+  ['المهام',ratio(DB.tasks,x=>x.status==='مكتملة'),DB.tasks.length+' مهمة','#tasks'],
+  ['الخطة التشغيلية',avgProg(DB.oplan,'منجز'),DB.oplan.length+' بند','#oplan'],
+  ['المراجعة الذاتية',reviewPct(),'المجالات الأربعة','#review'],
+  ['خطة التحسين',avgProg(DB.actions,'منجز'),DB.actions.length+' إجراء','#actions'],
+  ['خطة التوجيه',ratio(DB.gplan,x=>x.status==='منفذ'),DB.gplan.length+' برنامج','#gplan'],
+  ['الحالات الفردية المغلقة',ratio(DB.gcases,x=>x.status==='مغلقة'),DB.gcases.length+' حالة','#gcases'],
+  ['النشاط الطلابي المنفذ',ratio(DB.activities.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.activities.length+' نشاط','#activities'],
+  ['المناسبات المنفذة',ratio(DB.events.filter(x=>x.status!=='ملغى'&&x.date&&x.date<=t),x=>x.status==='منفذ'),'حتى اليوم','#events'],
+  ['الزيارات الموثقة بتوصيات',ratio(DB.visits,x=>(x.followup||x.improve||'').trim()),DB.visits.length+' زيارة','#visits'],
+  ['متابعات المعلمين المغلقة',ratio(DB.followups,x=>x.status==='مغلقة'),DB.followups.length+' متابعة','#followups'],
+  ['حالات السلوك المغلقة',ratio(DB.incidents,x=>x.status==='مغلقة'),DB.incidents.length+' حالة','#incidents'],
+  ['محاضر الاجتماعات الموثقة',ratio(DB.meetings,x=>(x.minutes||x.decisions||'').trim()),DB.meetings.length+' اجتماع','#meetings'],
+  ['تواصل أولياء الأمور المغلق',ratio(DB.parents,x=>x.status==='مغلقة'),DB.parents.length+' تواصل','#parents'],
+  ['اللجان المنتهية/المنجزة',ratio(DB.committees,x=>x.status==='منتهية'),DB.committees.length+' لجنة','#committees'],
+  ['تغطية أيام المناوبة',DB.duty.length?Math.round(new Set(DB.duty.map(x=>x.day)).size/5*100):null,new Set(DB.duty.map(x=>x.day)).size+' من 5 أيام','#duty']];
+ // domain bars (operational plan)
+ const dom=DOMAINS.map(d=>{const a=DB.oplan.filter(x=>x.domain===d);return [d,avgProg(a,'منجز'),a.length]});
+ const W=520,bh=26,gap=14,H=DOMAINS.length*(bh+gap)+10;
+ const dbars=DB.oplan.length?`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="إنجاز الخطة التشغيلية حسب المجال">${dom.map(([d,p,n],i)=>{const y=i*(bh+gap)+6,w=(p||0)/100*(W-200);return `<text x="${W-4}" y="${y+18}" text-anchor="end" class="ct">${d}</text><rect x="70" y="${y}" width="${W-200}" height="${bh}" rx="8" class="cb-bg"/><rect x="${70+(W-200)-w}" y="${y}" width="${w}" height="${bh}" rx="8" class="cb anim" style="fill:var(--d${i+1})"/><text x="62" y="${y+18}" text-anchor="end" class="ct b">${n?p+'%':'—'}</text>`}).join('')}</svg>`:'<div class="empty">لا توجد بنود في الخطة التشغيلية بعد</div>';
+ // attendance line 30 days
+ const days=[];for(let i=29;i>=0;i--)days.push(addDays(t,-i));
+ const pts=days.map((d,i)=>{const a=DB.attendance.filter(x=>x.date===d),e=a.reduce((s,x)=>s+(+x.enrolled||0),0),ab=a.reduce((s,x)=>s+(+x.absent||0),0);return e?{i,d,v:(e-ab)/e*100}:null}).filter(Boolean);
+ const LW=560,LH=200,px=i=>LW-30-(i/29)*(LW-60),py=v=>LH-30-(Math.max(0,v-50)/50)*(LH-50);
+ const line=pts.length?`<svg viewBox="0 0 ${LW} ${LH}" class="chart" role="img" aria-label="نسبة الحضور خلال 30 يوماً">${[50,75,100].map(v=>`<line x1="30" x2="${LW-30}" y1="${py(v)}" y2="${py(v)}" class="cg"/><text x="${LW-4}" y="${py(v)+4}" text-anchor="end" class="ct s">${v}%</text>`).join('')}
+  ${pts.length>1?`<polyline points="${pts.map(p=>px(p.i)+','+py(p.v)).join(' ')}" class="cl anim-l"/>`:''}${pts.map(p=>`<circle cx="${px(p.i)}" cy="${py(p.v)}" r="4" class="cd"><title>${p.d}: ${p.v.toFixed(1)}%</title></circle>`).join('')}
+  <text x="${LW-30}" y="${LH-8}" text-anchor="middle" class="ct s">${days[0].slice(5)}</text><text x="30" y="${LH-8}" text-anchor="middle" class="ct s">اليوم</text></svg>`:'<div class="empty">لم يُسجَّل حضور خلال آخر 30 يوماً</div>';
+ // stacked tasks by period
+ const per=PERIODS.map(p=>{const a=DB.tasks.filter(x=>x.period===p);return {p,d:a.filter(x=>x.status==='مكتملة').length,o:a.filter(x=>isOver('tasks',x)).length,n:a.filter(x=>x.status!=='مكتملة'&&!isOver('tasks',x)).length}});
+ const mx=Math.max(1,...per.map(x=>x.d+x.o+x.n)),SW=560,SH=220,cw=(SW-40)/5;
+ const stack=DB.tasks.length?`<svg viewBox="0 0 ${SW} ${SH}" class="chart" role="img" aria-label="المهام حسب الفترة">${per.map((x,i)=>{const cx=SW-20-cw*(i+.5),bw=Math.min(54,cw*.55),u=(SH-60)/mx;let y=SH-35;const seg=(v,cl)=>{if(!v)return'';y-=v*u;return `<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${v*u}" class="${cl} anim-v"><title>${v}</title></rect>`};
+   return seg(x.d,'s-done')+seg(x.n,'s-pend')+seg(x.o,'s-over')+`<text x="${cx}" y="${y-6}" text-anchor="middle" class="ct b">${x.d+x.n+x.o||''}</text><text x="${cx}" y="${SH-14}" text-anchor="middle" class="ct">${PICON[x.p]} ${x.p}</text>`}).join('')}</svg>
+   <div class="legend"><span><i class="s-done"></i>منجزة</span><span><i class="s-pend"></i>قيد الانتظار</span><span><i class="s-over"></i>متأخرة</span></div>`:'<div class="empty">لا توجد مهام بعد</div>';
+ // incidents per month (last 6)
+ const ms=[];{const d=new Date();d.setDate(1);for(let i=5;i>=0;i--){const x=new Date(d.getFullYear(),d.getMonth()-i,1);ms.push(x.getFullYear()+'-'+pad(x.getMonth()+1))}}
+ const ic=ms.map(m=>({m,n:DB.incidents.filter(x=>(x.date||'').startsWith(m)).length,pos:DB.incidents.filter(x=>(x.date||'').startsWith(m)&&x.type==='سلوك إيجابي').length}));const imx=Math.max(1,...ic.map(x=>x.n)),IW=560,IH=200,iw=(IW-40)/6;
+ const inc=DB.incidents.length?`<svg viewBox="0 0 ${IW} ${IH}" class="chart" role="img" aria-label="حالات السلوك شهرياً">${ic.map((x,i)=>{const cx=IW-20-iw*(i+.5),h=x.n/imx*(IH-70),bw=Math.min(46,iw*.5);const mn=new Date(x.m+'-01T00:00:00').toLocaleDateString('ar-SA-u-ca-gregory',{month:'short'});return `<rect x="${cx-bw/2}" y="${IH-35-h}" width="${bw}" height="${h}" rx="6" class="s-inc anim-v"><title>${x.n}</title></rect><text x="${cx}" y="${IH-41-h}" text-anchor="middle" class="ct b">${x.n||''}</text><text x="${cx}" y="${IH-14}" text-anchor="middle" class="ct">${mn}</text>`}).join('')}</svg>`:'<div class="empty">لا توجد حالات سلوك مسجلة</div>';
+ return `<div class="card"><h3>📈 مؤشرات الإنجاز</h3><div class="rings">${rings.map(r=>ring(...r)).join('')}</div></div>
+ <div class="grid two"><div class="card"><h3>إنجاز الخطة التشغيلية حسب المجال</h3>${dbars}</div><div class="card"><h3>نسبة حضور الطلاب — آخر 30 يوماً</h3>${line}</div></div>
+ <div class="grid two"><div class="card"><h3>المهام حسب الفترة</h3>${stack}</div><div class="card"><h3>حالات السلوك والحوادث شهرياً</h3>${inc}</div></div>`}
 function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  const up=[...DB.events.filter(x=>x.date>=t&&x.date<=soon&&x.status!=='ملغى').map(x=>({...x,_k:'مناسبة'})),...DB.activities.filter(x=>x.date>=t&&x.date<=soon&&x.status!=='ملغى').map(x=>({...x,_k:'نشاط'})),...DB.gplan.filter(x=>x.date>=t&&x.date<=soon&&x.status==='مخطط').map(x=>({...x,_k:'توجيه'}))].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
  const dueList=DB.tasks.filter(x=>x.status!=='مكتملة'&&x.due&&x.due<=addDays(t,7)).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
@@ -304,17 +350,38 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  ${K('تنفيذ خطة التوجيه',st.gPlan==null?'—':st.gPlan+'%',DB.gplan.length+' برنامج مخطط','gold')}
  ${K('الشواهد المرفوعة',st.ev,'<a href="#evidence">معرض الشواهد</a>')}
  </div>
+ ${chartsBlock()}
  <div class="grid two"><div class="card"><h3>المهام المستحقة والمتأخرة (7 أيام)</h3>${dueList.length?dueList.map(x=>`<div class="row"><span class="grow">${esc(x.title)} ${x.sample?'<span class="pill sample">تجريبي</span>':''}</span>${isOver('tasks',x)?'<span class="pill red">متأخرة</span>':''}<span class="small muted">${fmtDate(x.due,false)}</span><button class="btn sm gold" data-act="done" data-c="tasks" data-id="${x.id}" aria-label="إنجاز">✓</button></div>`).join(''):'<div class="empty">لا توجد مهام مستحقة</div>'}</div>
  <div class="card"><h3>المناسبات والأنشطة وبرامج التوجيه القادمة (30 يوماً)</h3>${up.length?up.map(x=>`<div class="row"><span class="pill blue">${x._k}</span><span class="grow">${esc(x.title)}</span><span class="small muted">${fmtDate(x.date,false)}</span></div>`).join(''):'<div class="empty">لا توجد مناسبات أو أنشطة قادمة مسجلة</div>'}</div></div>
  <div class="grid two"><div class="card"><h3>إنجاز المهام حسب المجال</h3>${DOMAINS.map(d=>{const a=DB.tasks.filter(x=>x.domain===d),dn=a.filter(x=>x.status==='مكتملة').length,p=a.length?Math.round(dn/a.length*100):0;return `<div class="row"><span style="width:120px">${d}</span><div class="bar grow"><i style="width:${p}%"></i></div><span class="small" style="width:80px">${a.length?p+'% ('+dn+'/'+a.length+')':'—'}</span></div>`}).join('')}</div>
  <div class="card"><h3>المراجعة الذاتية حسب المجال</h3>${DOMAINS.map(d=>{const p=reviewPct(d);return `<div class="row"><span style="width:120px">${d}</span><div class="bar grow"><i style="width:${p||0}%"></i></div><span class="small" style="width:50px">${p==null?'—':p+'%'}</span></div>`}).join('')}<a class="small" href="#review">فتح المراجعة الذاتية ←</a></div></div>
  <div class="card"><h3>إنجاز الخطة التشغيلية حسب المجال</h3>${DOMAINS.map(d=>{const a=DB.oplan.filter(x=>x.domain===d),p=a.length?Math.round(a.reduce((s,x)=>s+(x.status==='منجز'?100:+x.progress||0),0)/a.length):0,o=a.filter(x=>isOver('oplan',x)).length;return `<div class="row"><span style="width:120px">${d}</span><div class="bar grow"><i style="width:${p}%"></i></div><span class="small" style="width:130px">${a.length?p+'% ('+a.length+' بند'+(o?'، '+o+' متأخر':'')+')':'—'}</span></div>`}).join('')}<a class="small" href="#oplan">فتح الخطة التشغيلية ←</a></div>`}
 
-function templatesView(){const g=PERIODS.map(p=>{const list=DB.templates.filter(t=>t.period===p).sort((a,b)=>DOMAINS.indexOf(a.domain)-DOMAINS.indexOf(b.domain));
- return `<div class="card tpl-group"><div class="row"><h3 class="grow" style="margin:0">${p}</h3><label class="small"><input type="checkbox" data-allp="${p}"> تحديد الكل</label></div>${list.map(t=>`<div class="tpl"><input type="checkbox" data-tp="${t.id}" data-p="${p}" aria-label="تحديد"><div class="grow"><input class="tpl-t" data-tt="${t.id}" value="${esc(t.title)}" aria-label="نص القالب" style="width:100%;border:0;background:transparent;padding:2px"><div><span class="pill">${esc(t.domain)}</span></div></div><button class="btn sm ghost" data-act="tdel" data-id="${t.id}" aria-label="حذف القالب">✕</button></div>`).join('')||'<div class="empty">لا قوالب</div>'}</div>`}).join('');
- return `<div class="head"><div><h2>قوالب مهام مدير المدرسة</h2><div class="muted small">قوالب جاهزة قابلة للتعديل (اضغط على النص لتعديله). حدّد القوالب ثم أنشئ مهاماً منها بتاريخ بداية.</div></div>
- <div class="btns"><label class="small">تاريخ البداية <input type="date" id="tplStart" value="${today()}"></label><button class="btn gold" data-act="tcreate">إنشاء مهام من المحدد</button><button class="btn ghost" data-act="tadd">＋ قالب جديد</button><button class="btn ghost" data-act="treset">استعادة القوالب الافتراضية</button></div></div>${g}`}
-
+const PICON={'يومي':'☀️','أسبوعي':'📆','شهري':'🗓️','فصلي':'📚','نهاية العام':'🎓'};
+function taskTabs(F){const cnt=p=>DB.tasks.filter(x=>(!p||x.period===p)&&x.status!=='مكتملة').length,ov=p=>DB.tasks.filter(x=>(!p||x.period===p)&&isOver('tasks',x)).length;
+ return `<div class="ptabs" role="tablist">${['',...PERIODS].map(p=>`<button type="button" role="tab" class="ptab ${(F.period||'')===p?'on':''}" data-ptab="${p}" aria-selected="${(F.period||'')===p}"><span class="pi">${p?PICON[p]:'🗂️'}</span><span>${p||'الكل'}</span><span class="pc">${cnt(p)}</span>${ov(p)?`<span class="po" title="متأخرة">${ov(p)}</span>`:''}</button>`).join('')}</div>`}
+function chip(t,cls=''){return `<span class="chip ${cls}">${t}</span>`}
+function taskCard(x,hl){const ov=isOver('tasks',x),done=x.status==='مكتملة';const pc={'عالية':'red','متوسطة':'amber','منخفضة':'green'}[x.priority]||'',sc={'مكتملة':'green','قيد التنفيذ':'blue','مؤجلة':'gray'}[x.status]||'amber';
+ const t=hl?esc(x.title).replace(new RegExp(hl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark class="hl">${m}</mark>`):esc(x.title);
+ return `<article class="tcard ${ov?'over':''} ${done?'done':''}" style="--dc:var(--d${DOMAINS.indexOf(x.domain)+1})">
+ <button type="button" class="tchk" ${done?'disabled':''} data-act="done" data-c="tasks" data-id="${x.id}" aria-label="${done?'مكتملة':'تعليم كمكتملة'}">${done?'✓':''}</button>
+ <div class="tbody"><div class="ttl2">${t} ${x.sample?'<span class="pill sample">تجريبي</span>':''}</div>
+ <div class="chips">${chip(esc(x.domain),'dom')}${x.priority?chip('● '+esc(x.priority),pc):''}${chip(esc(x.status||'جديدة'),sc)}${x.recur&&x.recur!=='لا يتكرر'?chip('🔁 '+esc(x.recur),'gray'):''}${x.remind?chip('⏰ '+esc(x.remind),'gray'):''}${x.owner&&x.owner!=='مدير المدرسة'?chip('👤 '+esc(x.owner),'gray'):''}</div>
+ ${x.notes?`<div class="small muted tnote">${esc(x.notes).slice(0,180)}</div>`:''}</div>
+ <div class="tside"><div class="tdue ${ov?'bad':''}">${ov?'⚠️ متأخرة<br>':''}${fmtDate(x.due,DB.settings.hijri)}</div><div class="btns">${evBtn('tasks',x.id)}<button class="btn sm ghost" data-act="edit" data-c="tasks" data-id="${x.id}">تعديل</button></div></div></article>`}
+function taskCards(rows,F){if(!rows.length)return '<div class="empty">لا توجد مهام في هذا التبويب</div>';
+ const ps=F.period?[F.period]:PERIODS.filter(p=>rows.some(x=>x.period===p));const other=rows.filter(x=>!PERIODS.includes(x.period));
+ return ps.map(p=>{const r=rows.filter(x=>x.period===p),d=r.filter(x=>x.status==='مكتملة').length,pct=r.length?Math.round(d/r.length*100):0;
+  return `<section class="pgroup"><header class="pghead"><span class="pi">${PICON[p]}</span><h3>المهام ${p==='نهاية العام'?'نهاية العام':p==='يومي'?'اليومية':p==='أسبوعي'?'الأسبوعية':p==='شهري'?'الشهرية':'الفصلية'}</h3><span class="muted small">${d}/${r.length} منجزة</span><div class="bar" style="width:120px"><i style="width:${pct}%"></i></div></header>
+  <div class="tgrid">${r.map(x=>taskCard(x,F.q)).join('')}</div></section>`}).join('')+(other.length?`<section class="pgroup"><header class="pghead"><h3>أخرى</h3></header><div class="tgrid">${other.map(x=>taskCard(x,F.q)).join('')}</div></section>`:'')}
+let tplTab='يومي';
+function templatesView(){const p=tplTab,list=DB.templates.filter(t=>t.period===p);
+ const tabs=`<div class="ptabs" role="tablist">${PERIODS.map(x=>`<button type="button" role="tab" class="ptab ${x===p?'on':''}" data-ttab="${x}" aria-selected="${x===p}"><span class="pi">${PICON[x]}</span><span>${x}</span><span class="pc">${DB.templates.filter(t=>t.period===x).length}</span></button>`).join('')}</div>`;
+ const body=DOMAINS.map(d=>{const l=list.filter(t=>t.domain===d);if(!l.length)return'';return `<div class="tdom" style="--dc:var(--d${DOMAINS.indexOf(d)+1})"><h4>${d} <span class="muted small">(${l.length})</span></h4><div class="tplgrid">${l.map(t=>`<label class="tplc"><input type="checkbox" data-tp="${t.id}" data-p="${p}" aria-label="تحديد القالب"><textarea class="tpl-t" data-tt="${t.id}" rows="2" maxlength="200" aria-label="نص القالب (قابل للتعديل)">${esc(t.title)}</textarea><button type="button" class="iconbtn sm" data-act="tdel" data-id="${t.id}" aria-label="حذف القالب">✕</button></label>`).join('')}</div></div>`}).join('');
+ return `<div class="head"><div><h2>قوالب مهام مدير المدرسة</h2><div class="muted small">قوالب جاهزة قابلة للتعديل (اضغط على النص لتعديله). حدّد القوالب ثم أنشئ منها مهاماً تتكرر تلقائياً حسب الفترة.</div></div>
+ <div class="btns"><button class="btn ghost" data-act="tadd">＋ قالب جديد</button><button class="btn ghost" data-act="treset">استعادة القوالب الافتراضية</button></div></div>
+ ${tabs}<div class="card"><div class="row" style="flex-wrap:wrap;gap:10px"><label class="row small" style="margin:0"><input type="checkbox" data-allp="${p}"> تحديد كل قوالب «${p}»</label><span class="grow"></span><label class="small">تاريخ البداية <input type="date" id="tplStart" value="${today()}"></label><button class="btn gold" data-act="tcreate">إنشاء مهام من المحدد</button></div>
+ ${body||'<div class="empty">لا توجد قوالب في هذه الفترة</div>'}</div>`}
 function reviewView(){return `<div class="head"><div><h2>المراجعة الذاتية الدورية</h2><div class="muted small">قيّم كل مؤشر: متحقق (2) / متحقق جزئياً (1) / غير متحقق (0). تُحسب النسبة تلقائياً. أضف الشواهد في الملاحظة.</div></div>
  <div class="btns"><button class="btn ghost" data-act="print" data-c="review">طباعة</button><button class="btn ghost" data-act="rvreset">بدء دورة مراجعة جديدة</button></div></div>
  ${DB.review._date?`<div class="muted small" style="margin-bottom:8px">آخر تحديث: ${fmtDate(DB.review._date)}</div>`:''}
@@ -427,6 +494,7 @@ function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${fr
  else if(type==='review'){h=printHead('المراجعة الذاتية','متوسط عام: '+(reviewPct()??'—')+(reviewPct()!=null?'%':''));
   DOMAINS.forEach(d=>{h+=`<section><h3>${d} — ${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المؤشر</th><th>التقدير</th><th>الشواهد</th></tr>${REVIEW[d].map((q,i)=>{const v=(DB.review[d]||{})[i]||{};return `<tr><td>${esc(q)}</td><td>${({2:'متحقق',1:'متحقق جزئياً',0:'غير متحقق'})[v.s]||'—'}</td><td>${esc(v.n||'')}${evPrint('review',d+'|'+i)}</td></tr>`}).join('')}</table></section>`})}
  else if(type==='oplan'){const pf=planFiles()[0];h=printHead(S.oplan.t,(pf?'ملف الخطة المعتمد: '+esc(pf.name)+(pf.meta&&pf.meta.year?' — العام '+esc(pf.meta.year):'')+' — ':'')+'نسبة الإنجاز العامة: '+(stats().opPct??'—')+'%');DOMAINS.forEach(d=>{const r=rowsFor('oplan',from,to).filter(x=>x.domain===d);h+=`<section><h3>${d} (${r.length})</h3>${ptable('oplan',r)}</section>`})}
+ else if(type==='tasks'){const r=rowsFor('tasks',from,to);h=printHead(S.tasks.t,(range?range+' — ':'')+'الإنجاز: '+r.filter(x=>x.status==='مكتملة').length+' من '+r.length);PERIODS.forEach(p=>{const a=r.filter(x=>x.period===p).sort((x,y)=>(DOMAINS.indexOf(x.domain)-DOMAINS.indexOf(y.domain))||String(x.due).localeCompare(String(y.due)));if(a.length)h+=`<section><h3>${PICON[p]} المهام — ${p} (${a.filter(x=>x.status==='مكتملة').length}/${a.length})</h3>${ptable('tasks',a)}</section>`})}
  else if(S[type]){let r=rowsFor(type,from,to);h=printHead(S[type].t,range)+`<section>${ptable(type,r)}</section>`}
  const pv=type==='summary'||type==='weekly'?'reports':type;h+=secPrint(pv);
  $('#printArea').innerHTML=fem(h)+sig();const imgs=$$('#printArea img');Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r}))).then(()=>setTimeout(()=>window.print(),50))}
@@ -626,6 +694,7 @@ document.addEventListener('dragover',e=>{const d=e.target.closest('.sec-drop');i
 document.addEventListener('dragleave',e=>{const d=e.target.closest('.sec-drop');d&&d.classList.remove('on')});
 document.addEventListener('drop',e=>{const d=e.target.closest('.sec-drop');if(d){e.preventDefault();secUpload(d.dataset.c,null,e.dataTransfer.files)}});
 document.addEventListener('keydown',e=>{const d=e.target.closest&&e.target.closest('.sec-drop');if(d&&(e.key==='Enter'||e.key===' ')){e.preventDefault();secCtx={v:d.dataset.c};$('#secIn').click()}});
+document.addEventListener('click',e=>{const t=e.target.closest('[data-ptab]');if(t){const F=flt.tasks;F.period=t.dataset.ptab;render()}const u=e.target.closest('[data-ttab]');if(u){tplTab=u.dataset.ttab;render()}});
 document.addEventListener('submit',e=>{if(e.target.id!=='setForm')return;e.preventDefault();const f=e.target;const mob=f.elements.supervisorMobile.value.trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));if(mob&&!/^\+?\d[\d\s-]{7,14}$/.test(mob)){toast('رقم الجوال غير صالح');f.elements.supervisorMobile.focus();return}
  ['school','principal','supervisor','region','year'].forEach(k=>DB.settings[k]=f.elements[k].value.trim().slice(0,120));DB.settings.supervisorMobile=mob;readSG(f);audit('تحديث الإعدادات','settings',{title:'بيانات المدرسة'});save();render();toast('حُفظت الإعدادات')});
 $('#fileIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&importJSON(f)};
