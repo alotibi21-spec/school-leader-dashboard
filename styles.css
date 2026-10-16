@@ -148,3 +148,8 @@ dialog::backdrop{background:#0f274799}
 [data-g=girls] .btn.gold{color:#4a0d2f}[data-g=girls] .evn{color:#4a0d2f}
 [data-g=girls][data-theme=dark] h2{color:#f7b6d5}
 [data-g=girls] .pill.sample{color:#6b1442}
+.navf{margin-inline-start:auto;font-size:.72rem;background:var(--gold2);color:#4a3500;border-radius:10px;padding:0 6px;font-weight:700}[data-g=girls] .navf{color:#6b1442}.side a.on .navf{background:var(--gold);color:var(--navy)}
+.seccard>summary{list-style:none}.seccard>summary::-webkit-details-marker{display:none}
+.ttl{max-width:48%}#todayDate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search{min-width:180px}
+@media (max-width:820px){.ttl{max-width:none}table.resp td{flex-wrap:wrap;word-break:break-word;min-width:0}table.resp td>*{max-width:100%}}
