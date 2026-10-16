@@ -220,3 +220,8 @@ dialog::backdrop{background:#0f274799}
 .chart{direction:ltr}.chart text{unicode-bidi:plaintext}
 .tside .btns{flex-wrap:nowrap}.tdue{flex:1}
 [hidden]{display:none!important}
+
+.comgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px}
+.comcard{display:block;text-decoration:none;color:var(--text);background:var(--card);border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:14px;padding:14px;transition:.15s}
+.comcard:hover{box-shadow:0 6px 18px #00000014;transform:translateY(-1px)}
+@media (max-width:820px){.comgrid{grid-template-columns:1fr}}
