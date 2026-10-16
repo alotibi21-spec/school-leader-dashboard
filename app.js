@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.6.1';
+const APP_VERSION='1.7.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -20,7 +20,7 @@ function fmtDate(s,withHijri=true){if(!s)return'—';const d=parseD(s);if(isNaN(
 function fmtPlain(s){if(!s)return'';const d=parseD(s);if(isNaN(d))return s;let h='';try{h=d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){}return s+(h?' ('+h+')':'')}
 
 /* ---------- Feminine labels for girls' schools ---------- */
-const FEM=[['قائد/مدير','قائدة/مديرة'],['قائد المدرسة','قائدة المدرسة'],['مدير المدرسة','مديرة المدرسة'],['المعلمين','المعلمات'],['معلمين','معلمات'],['للمعلمين','للمعلمات'],['المعلم','المعلمة'],['معلم','معلمة'],['الطلاب','الطالبات'],['للطلاب','للطالبات'],['طلاب','طالبات'],['الطالب','الطالبة'],['طالب','طالبة'],['المتفوقين','المتفوقات'],['الموجه الطلابي','الموجهة الطلابية'],['رائد النشاط','رائدة النشاط'],['المكرَّم','المكرَّمة'],['المكلف','المكلفة'],['المرشد الطلابي','المرشدة الطلابية'],['المرشد','المرشدة'],['المستفيدين','المستفيدات'],['الوكلاء','الوكيلات'],['المحتاجين','المحتاجات'],['منسوبين','منسوبات'],['المنسوبين','المنسوبات'],['إداري','إدارية']];
+const FEM=[['قائد/مدير','قائدة/مديرة'],['قائد المدرسة','قائدة المدرسة'],['مدير المدرسة','مديرة المدرسة'],['المعلمين','المعلمات'],['المعلمون','المعلمات'],['معلمو','معلمات'],['المدرب','المدربة'],['معلمين','معلمات'],['للمعلمين','للمعلمات'],['المعلم','المعلمة'],['معلم','معلمة'],['الطلاب','الطالبات'],['للطلاب','للطالبات'],['طلاب','طالبات'],['الطالب','الطالبة'],['طالب','طالبة'],['المتفوقين','المتفوقات'],['الموجه الطلابي','الموجهة الطلابية'],['رائد النشاط','رائدة النشاط'],['المكرَّم','المكرَّمة'],['المكلف','المكلفة'],['المرشد الطلابي','المرشدة الطلابية'],['المرشد','المرشدة'],['المستفيدين','المستفيدات'],['الوكلاء','الوكيلات'],['المحتاجين','المحتاجات'],['منسوبين','منسوبات'],['المنسوبين','المنسوبات'],['إداري','إدارية']];
 const FEMRX=FEM.map(([a,b])=>[new RegExp('(?<![\u0600-\u06FF])'+a.replace('/','\\/')+'(?![\u0600-\u06FF])','g'),b]);
 const isGirls=()=>DB&&DB.settings.gender==='بنات';
 const fem=h=>{if(!isGirls())return h;FEMRX.forEach(([r,b])=>h=h.replace(r,b));return h};
@@ -121,6 +121,20 @@ S.oplan={t:'الخطة التشغيلية للمدرسة',one:'بند في ال�
   {k:'kpi',l:'مؤشر الأداء'},{k:'target',l:'المستهدف'},{k:'status',l:'الحالة',type:'select',opts:['لم يبدأ','قيد التنفيذ','منجز','متعثر'],def:'لم يبدأ'},
   {k:'progress',l:'نسبة الإنجاز %',type:'number',min:0,max:100,def:0},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
   cols:['domain','goal','program','owner','end','kpi','target','status','progress'],date:'end'};
+const PDTYPES=['دورة','ورشة','مجتمع تعلم مهني','زيارة تبادلية','قراءة موجهة','درس تطبيقي','أخرى'];
+Object.assign(S,{
+ pd:{t:'برامج النمو المهني',one:'برنامج نمو مهني',f:[
+  {k:'title',l:'اسم البرنامج',req:1,full:1},{k:'type',l:'النوع',type:'select',opts:PDTYPES,req:1},{k:'date',l:'التاريخ',type:'date',req:1,def:'today'},
+  {k:'hours',l:'عدد الساعات',type:'number',min:0,max:500},{k:'count',l:'عدد المستفيدين',type:'number',min:0},{k:'beneficiaries',l:'أسماء المستفيدين',type:'textarea',full:1},
+  {k:'provider',l:'الجهة المقدِّمة',ph:'مثال: إدارة التعليم / المدرسة'},{k:'executor',l:'المنفذ/المدرب'},
+  {k:'domain',l:'المجال',type:'select',opts:DOMAINS,def:'التعليم والتعلم'},{k:'status',l:'الحالة',type:'select',opts:['مخطط','منفذ','ملغى'],def:'منفذ'},{k:'impact',l:'الأثر والملاحظات',type:'textarea',full:1}],
+  cols:['date','title','type','hours','count','provider','status'],date:'date'},
+ pdplan:{t:'خطة النمو المهني',one:'احتياج/برنامج مخطط',f:[
+  {k:'title',l:'البرنامج/الاحتياج التدريبي',req:1,full:1},{k:'type',l:'النوع',type:'select',opts:PDTYPES,req:1},{k:'target',l:'الفئة المستهدفة',ph:'مثال: معلمو الرياضيات'},
+  {k:'date',l:'الموعد المخطط',type:'date',req:1},{k:'hours',l:'الساعات المخططة',type:'number',min:0,max:500},{k:'owner',l:'المسؤول'},
+  {k:'status',l:'الحالة',type:'select',opts:['مخطط','منفذ','مؤجل','ملغى'],def:'مخطط'},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['date','title','type','target','hours','owner','status'],date:'date'}
+});
 const DONE={tasks:'مكتملة',actions:'منجز',oplan:'منجز'};
 const lbl=(c,k)=>k==='rate'?'نسبة الحضور':(S[c].f.find(x=>x.k===k)||{}).l||k;
 
@@ -290,7 +304,7 @@ function stats(){const t=today(),m=t.slice(0,7),wk=addDays(t,-6),d30=addDays(t,-
   incM:DB.incidents.filter(x=>(x.date||'').startsWith(m)).length,incOpen:DB.incidents.filter(x=>x.status!=='مغلقة').length,
   visM:DB.visits.filter(x=>(x.date||'').startsWith(m)).length,visW:DB.visits.filter(x=>x.date>=wk&&x.date<=t).length,
   actPct:DB.actions.length?Math.round(DB.actions.reduce((s,x)=>s+(x.status==='منجز'?100:+x.progress||0),0)/DB.actions.length):null,actOver:DB.actions.filter(x=>isOver('actions',x)).length,
-  review:reviewPct(),gProg:DB.guidance.filter(x=>x.date>=addDays(t,-89)&&x.date<=t),gOpen:DB.gcases.filter(x=>x.status!=='مغلقة').length,gDue:DB.gcases.filter(x=>x.status!=='مغلقة'&&x.next&&x.next<=t).length,gPlan:DB.gplan.length?Math.round(DB.gplan.filter(x=>x.status==='منفذ').length/DB.gplan.length*100):null,ev:FILES.length,opPct:DB.oplan.length?Math.round(DB.oplan.reduce((a,x)=>a+(x.status==='منجز'?100:+x.progress||0),0)/DB.oplan.length):null,opOver:DB.oplan.filter(x=>isOver('oplan',x)).length}}
+  review:reviewPct(),gProg:DB.guidance.filter(x=>x.date>=addDays(t,-89)&&x.date<=t),gOpen:DB.gcases.filter(x=>x.status!=='مغلقة').length,gDue:DB.gcases.filter(x=>x.status!=='مغلقة'&&x.next&&x.next<=t).length,gPlan:DB.gplan.length?Math.round(DB.gplan.filter(x=>x.status==='منفذ').length/DB.gplan.length*100):null,ev:FILES.length,opPct:DB.oplan.length?Math.round(DB.oplan.reduce((a,x)=>a+(x.status==='منجز'?100:+x.progress||0),0)/DB.oplan.length):null,pdHours:DB.pd.filter(x=>x.status!=='ملغى'&&x.status!=='مخطط').reduce((a,x)=>a+(+x.hours||0),0),pdCount:DB.pd.filter(x=>x.status==='منفذ').length,pdBen:DB.pd.filter(x=>x.status==='منفذ').reduce((a,x)=>a+(+x.count||0),0),pdPlan:ratio(DB.pdplan.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),opOver:DB.oplan.filter(x=>isOver('oplan',x)).length}}
 function reviewPct(dom){const ds=dom?[dom]:DOMAINS;let s=0,n=0;ds.forEach(d=>REVIEW[d].forEach((_,i)=>{const v=(DB.review[d]||{})[i];if(v&&v.s!=null&&v.s!==''){s+=+v.s;n++}}));return n?Math.round(s/(n*2)*100):null}
 const K=(l,v,s,cl='')=>`<div class="kpi ${cl}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
 /* ---------- Hand-made SVG charts ---------- */
@@ -314,6 +328,8 @@ function chartsBlock(){const t=today();
   ['محاضر الاجتماعات الموثقة',ratio(DB.meetings,x=>(x.minutes||x.decisions||'').trim()),DB.meetings.length+' اجتماع','#meetings'],
   ['تواصل أولياء الأمور المغلق',ratio(DB.parents,x=>x.status==='مغلقة'),DB.parents.length+' تواصل','#parents'],
   ['اللجان المنتهية/المنجزة',ratio(DB.committees,x=>x.status==='منتهية'),DB.committees.length+' لجنة','#committees'],
+  ['خطة النمو المهني',ratio(DB.pdplan.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.pdplan.length+' برنامج','#pdplan'],
+  ['برامج النمو المهني المنفذة',ratio(DB.pd.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.pd.reduce((a,x)=>a+(x.status==='منفذ'?+x.hours||0:0),0)+' ساعة','#pd'],
   ['تغطية أيام المناوبة',DB.duty.length?Math.round(new Set(DB.duty.map(x=>x.day)).size/5*100):null,new Set(DB.duty.map(x=>x.day)).size+' من 5 أيام','#duty']];
  // domain bars (operational plan)
  const dom=DOMAINS.map(d=>{const a=DB.oplan.filter(x=>x.domain===d);return [d,avgProg(a,'منجز'),a.length]});
@@ -360,6 +376,8 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  ${K('برامج التوجيه الطلابي (90 يوماً)',st.gProg.length,st.gProg.reduce((a,x)=>a+(+x.beneficiaries||0),0)+' مستفيد','green')}
  ${K('الحالات الفردية المفتوحة',st.gOpen,st.gDue?st.gDue+' متابعة مستحقة':'لا متابعات مستحقة',st.gDue?'red':'')}
  ${K('تنفيذ خطة التوجيه',st.gPlan==null?'—':st.gPlan+'%',DB.gplan.length+' برنامج مخطط','gold')}
+ ${K('ساعات النمو المهني المنفذة',st.pdHours,st.pdCount+' برنامج — '+st.pdBen+' مستفيد','green')}
+ ${K('تنفيذ خطة النمو المهني',st.pdPlan==null?'—':st.pdPlan+'%',DB.pdplan.length+' برنامج مخطط','gold')}
  ${K('الشواهد المرفوعة',st.ev,'<a href="#evidence">معرض الشواهد</a>')}
  </div>
  ${chartsBlock()}
@@ -497,11 +515,11 @@ function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${fr
   const done=DB.tasks.filter(x=>x.doneAt&&x.doneAt>=from&&x.doneAt<=to);
   h+=`<section><h3>مؤشرات الأسبوع</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>نسبة حضور الطلاب</th><td>${e?Math.round((e-a)/e*1000)/10+'%':'—'}</td><th>مهام منجزة</th><td>${done.length}</td><th>مهام متأخرة</th><td>${st.over}</td></tr><tr><th>زيارات صفية</th><td>${rowsFor('visits',from,to).length}</td><th>حالات سلوك</th><td>${rowsFor('incidents',from,to).length}</td><th>اجتماعات</th><td>${rowsFor('meetings',from,to).length}</td></tr><tr><th>أنشطة</th><td>${rowsFor('activities',from,to).length}</td><th>تواصل أولياء أمور</th><td>${rowsFor('parents',from,to).length}</td><th>إنجاز خطة التحسين</th><td>${st.actPct==null?'—':st.actPct+'%'}</td></tr><tr><th>برامج التوجيه</th><td>${rowsFor('guidance',from,to).length}</td><th>المستفيدون</th><td>${rowsFor('guidance',from,to).reduce((a,x)=>a+(+x.beneficiaries||0),0)}</td><th>حالات فردية مفتوحة</th><td>${st.gOpen}</td></tr></table></section>`;
   h+=`<section><h3>المهام المنجزة</h3>${ptable('tasks',done)}</section><section><h3>المهام المتأخرة</h3>${ptable('tasks',DB.tasks.filter(x=>isOver('tasks',x)))}</section>`;
-  ['visits','incidents','meetings','activities','guidance','gcases','parents'].forEach(c=>h+=`<section><h3>${S[c].t}</h3>${ptable(c,rowsFor(c,from,to))}</section>`);
+  ['visits','incidents','meetings','activities','guidance','gcases','parents','pd'].forEach(c=>h+=`<section><h3>${S[c].t}</h3>${ptable(c,rowsFor(c,from,to))}</section>`);
   h+=`<section><h3>بنود الخطة التشغيلية المتأخرة</h3>${ptable('oplan',DB.oplan.filter(x=>isOver('oplan',x)))}</section>`;
   h+=`<section><h3>الأسبوع القادم</h3>${ptable('tasks',DB.tasks.filter(x=>x.status!=='مكتملة'&&x.due>to&&x.due<=addDays(to,7)))}</section>`}
  else if(type==='summary'){const st=stats();h=printHead('الملخص العام',range);
-  h+=`<section><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>نسبة الحضور (30 يوماً)</th><td>${st.attRate??'—'}${st.attRate!=null?'%':''}</td><th>إنجاز المهام</th><td>${st.taskPct??'—'}${st.taskPct!=null?'%':''}</td></tr><tr><th>المهام المتأخرة</th><td>${st.over}</td><th>حالات مفتوحة</th><td>${st.incOpen}</td></tr><tr><th>زيارات هذا الشهر</th><td>${st.visM}</td><th>المراجعة الذاتية</th><td>${st.review??'—'}${st.review!=null?'%':''}</td></tr><tr><th>برامج التوجيه (90 يوماً)</th><td>${st.gProg.length} (${st.gProg.reduce((a,x)=>a+(+x.beneficiaries||0),0)} مستفيد)</td><th>الحالات الفردية المفتوحة</th><td>${st.gOpen}</td></tr><tr><th>تنفيذ خطة التوجيه</th><td>${st.gPlan??'—'}${st.gPlan!=null?'%':''}</td><th>الشواهد المرفوعة</th><td>${st.ev}</td></tr><tr><th>إنجاز الخطة التشغيلية</th><td>${st.opPct??'—'}${st.opPct!=null?'%':''}</td><th>بنود الخطة المتأخرة</th><td>${st.opOver}</td></tr></table></section>`;
+  h+=`<section><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>نسبة الحضور (30 يوماً)</th><td>${st.attRate??'—'}${st.attRate!=null?'%':''}</td><th>إنجاز المهام</th><td>${st.taskPct??'—'}${st.taskPct!=null?'%':''}</td></tr><tr><th>المهام المتأخرة</th><td>${st.over}</td><th>حالات مفتوحة</th><td>${st.incOpen}</td></tr><tr><th>زيارات هذا الشهر</th><td>${st.visM}</td><th>المراجعة الذاتية</th><td>${st.review??'—'}${st.review!=null?'%':''}</td></tr><tr><th>برامج التوجيه (90 يوماً)</th><td>${st.gProg.length} (${st.gProg.reduce((a,x)=>a+(+x.beneficiaries||0),0)} مستفيد)</td><th>الحالات الفردية المفتوحة</th><td>${st.gOpen}</td></tr><tr><th>تنفيذ خطة التوجيه</th><td>${st.gPlan??'—'}${st.gPlan!=null?'%':''}</td><th>الشواهد المرفوعة</th><td>${st.ev}</td></tr><tr><th>إنجاز الخطة التشغيلية</th><td>${st.opPct??'—'}${st.opPct!=null?'%':''}</td><th>بنود الخطة المتأخرة</th><td>${st.opOver}</td></tr><tr><th>ساعات النمو المهني</th><td>${st.pdHours} ساعة (${st.pdCount} برنامج، ${st.pdBen} مستفيد)</td><th>تنفيذ خطة النمو المهني</th><td>${st.pdPlan??'—'}${st.pdPlan!=null?'%':''}</td></tr></table></section>`;
   h+=`<section><h3>حسب المجال</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المجال</th><th>المهام</th><th>المنجز</th><th>إجراءات التحسين</th><th>المراجعة الذاتية</th><th>الخطة التشغيلية</th></tr>${DOMAINS.map(d=>{const a=DB.tasks.filter(x=>x.domain===d),op=DB.oplan.filter(x=>x.domain===d),opp=op.length?Math.round(op.reduce((s,x)=>s+(x.status==='منجز'?100:+x.progress||0),0)/op.length)+'% ('+op.length+')':'—';return `<tr><td>${d}</td><td>${a.length}</td><td>${a.filter(x=>x.status==='مكتملة').length}</td><td>${DB.actions.filter(x=>x.domain===d).length}</td><td>${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</td><td>${opp}</td></tr>`}).join('')}</table></section>`}
  else if(type==='review'){h=printHead('المراجعة الذاتية','متوسط عام: '+(reviewPct()??'—')+(reviewPct()!=null?'%':''));
   DOMAINS.forEach(d=>{h+=`<section><h3>${d} — ${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المؤشر</th><th>التقدير</th><th>الشواهد</th></tr>${REVIEW[d].map((q,i)=>{const v=(DB.review[d]||{})[i]||{};return `<tr><td>${esc(q)}</td><td>${({2:'متحقق',1:'متحقق جزئياً',0:'غير متحقق'})[v.s]||'—'}</td><td>${esc(v.n||'')}${evPrint('review',d+'|'+i)}</td></tr>`}).join('')}</table></section>`})}
@@ -523,6 +541,8 @@ function loadSample(){if(hasSample()&&!confirm('توجد بيانات تجريب
  P('actions',{action:'رفع نسبة المواظبة عبر برنامج تحفيزي (مثال)',domain:'نواتج التعلم',owner:'الموجه الطلابي',deadline:addDays(t,20),status:'قيد التنفيذ',progress:40});
  P('oplan',{domain:'نواتج التعلم',goal:'رفع مستوى التحصيل في القراءة (مثال)',program:'برنامج القراءة اليومية',actions:'حصة قراءة أسبوعية',owner:'منسق اللغة العربية',start:addDays(t,-30),end:addDays(t,-2),kpi:'نسبة المتقنين',target:'80%',status:'قيد التنفيذ',progress:55});
  P('oplan',{domain:'البيئة المدرسية',goal:'تعزيز الأمن والسلامة (مثال)',program:'خطة الإخلاء',owner:'وكيل المدرسة',start:addDays(t,-10),end:addDays(t,40),kpi:'عدد التجارب',target:'2',status:'قيد التنفيذ',progress:30});
+ P('pd',{title:'مجتمع تعلم: استراتيجيات التقويم البنائي (مثال)',type:'مجتمع تعلم مهني',date:addDays(t,-6),hours:2,count:12,provider:'المدرسة',executor:'وكيل الشؤون التعليمية',domain:'التعليم والتعلم',status:'منفذ',impact:'تطبيق بطاقات الخروج في الحصص'});
+ P('pdplan',{title:'دورة التعلم النشط (مثال)',type:'دورة',target:'المعلمون الجدد',date:addDays(t,20),hours:6,owner:'منسق التطوير المهني',status:'مخطط'});
  P('guidance',{title:'برنامج تعزيز الانضباط (مثال)',field:'سلوكي',date:addDays(t,-3),target:'طلاب الصف الأول',beneficiaries:60,executor:'المرشد الطلابي',objectives:'خفض التأخر الصباحي',outcome:'انخفاض ملحوظ في التأخر'});
  P('gcases',{date:addDays(t,-5),student:'طالب (مثال)',cls:'الثاني/1',kind:'دراسية',referral:'ولي الأمر',status:'قيد المتابعة',next:addDays(t,2)});
  P('gplan',{title:'برنامج التوجيه المهني (مثال)',field:'مهني',date:addDays(t,14),target:'الصف الثالث',executor:'المرشد الطلابي',status:'مخطط'});
@@ -621,7 +641,7 @@ const secCol=v=>v==='oplan'?'opfile':'sec:'+v;
 const viewTitle=v=>S[v]?.t||({templates:'قوالب المهام',review:'المراجعة الذاتية',reports:'التقارير والتصدير'})[v]||v;
 const grpOf=f=>(f.meta&&f.meta.group)||(f.col==='opfile'?'plan':f.id);
 function secGroups(col){const g={};FILES.filter(f=>f.col===col).forEach(f=>{(g[grpOf(f)]=g[grpOf(f)]||[]).push(f)});return Object.values(g).map(a=>a.sort((x,y)=>y.added.localeCompare(x.added))).sort((a,b)=>b[0].added.localeCompare(a[0].added))}
-function secCard(v){const col=secCol(v),gs=secGroups(col),open=!!gs.length||v==='oplan';
+function secCard(v){const col=secCol(v),gs=secGroups(col),open=!!gs.length||v==='oplan'||v==='pd';
  return `<details class="card seccard" ${open?'open':''}><summary class="row" style="flex-wrap:wrap;cursor:pointer"><b class="grow">📁 ${v==='oplan'?'ملف الخطة التشغيلية المعتمد':'ملفات القسم: '+esc(viewTitle(v))} <span class="pill">${gs.length}</span></b>
  <button type="button" class="btn gold sm" data-act="secup" data-c="${v}">⬆️ رفع ملف</button></summary>
  <div class="ev-drop sec-drop" data-act="secup" data-c="${v}" tabindex="0" style="margin:10px 0;padding:10px">اسحب الملفات هنا أو اضغط للاختيار — PDF، Word، Excel، PowerPoint، صور (حتى 15 م.ب). تُحفظ على هذا الجهاز وتعمل دون اتصال وتُضمَّن في النسخة الاحتياطية.</div>
