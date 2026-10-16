@@ -16,6 +16,7 @@
 <a class="skip" href="#main">تخطَّ إلى المحتوى</a>
 <div id="updateBar" class="banner gold" hidden>يتوفر إصدار جديد من التطبيق. <button id="updBtn" class="btn sm">تحديث الآن</button></div>
 <div id="sampleBar" class="banner warn" hidden>⚠️ تعرض اللوحة <b>بيانات تجريبية للتوضيح فقط</b> وليست بيانات حقيقية. <button class="btn sm" data-act="clearSample">حذف البيانات التجريبية</button></div>
+<div class="ticker" role="marquee" aria-label="تنبيه: تثبيت الغياب بشكل يومي قبل الساعة 8 ص"><span>⏰ تثبيت الغياب بشكل يومي قبل الساعة 8 ص</span></div>
 <header class="top">
   <button class="iconbtn menu" id="menuBtn" aria-label="القائمة" aria-expanded="false">☰</button>
   <img id="topLogo" class="logo" alt="" hidden>
@@ -31,6 +32,7 @@
   <a href="#dashboard" data-v="dashboard">📊 الرئيسية</a>
   <a href="#tasks" data-v="tasks">✅ المهام <span class="pill red" id="navOver" hidden></span></a>
   <a href="#templates" data-v="templates">📋 قوالب المهام</a>
+  <a href="#oplan" data-v="oplan">🗂️ الخطة التشغيلية للمدرسة <span class="pill red" id="navOp" hidden></span></a>
   <div class="sep">السجلات</div>
   <a href="#attendance" data-v="attendance">🧑‍🎓 حضور الطلاب</a>
   <a href="#visits" data-v="visits">🏫 الزيارات الصفية</a>
@@ -67,6 +69,8 @@
 <div id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="fileIn" accept="application/json,.json" hidden>
 <input type="file" id="evIn" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt" hidden>
+<input type="file" id="opIn" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" hidden>
+<input type="file" id="opImpIn" accept=".csv,.xlsx,.xls,.ods,text/csv" hidden>
 <input type="file" id="logoIn" accept="image/*" hidden>
 <script src="app.js"></script>
 </body>
