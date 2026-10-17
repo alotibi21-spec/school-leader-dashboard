@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.11.0';
+const APP_VERSION='1.12.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -837,6 +837,30 @@ async function restoreFiles(arr){if(!idb)return 0;await idbReq(tx('readwrite').c
 const planFiles=()=>FILES.filter(f=>f.col==='opfile').sort((a,b)=>b.added.localeCompare(a.added));
 function oplanView(){return secCard('oplan')+`<div class="card"><div class="row" style="flex-wrap:wrap"><b class="grow">استيراد بنود الخطة</b><button class="btn ghost" data-act="optpl">نموذج استيراد CSV</button><button class="btn ghost" data-act="opimp">استيراد بنود من Excel/CSV</button></div></div>`+listView('oplan')}
 function printHTML(h){$('#printArea').innerHTML=fem(h)+sig();const imgs=$$('#printArea img');Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r}))).then(()=>setTimeout(()=>window.print(),50))}
+/* ---------- Voice input (Web Speech API; recognition is done by the browser) ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const VOICE={rec:null,el:null,btn:null,base:'',fin:'',user:false};
+const VERR={'not-allowed':'لم يُسمح باستخدام الميكروفون. فعّل إذن الميكروفون لهذا الموقع من إعدادات المتصفح ثم حاول مجدداً.','service-not-allowed':'خدمة التعرّف على الصوت غير متاحة أو غير مسموح بها في هذا المتصفح.','network':'تعذّر التعرّف على الصوت: يحتاج هذا المتصفح إلى اتصال بالإنترنت للإدخال الصوتي.','no-speech':'لم يُلتقط صوت. اضغط 🎤 وتحدّث بوضوح.','audio-capture':'لا يوجد ميكروفون متاح على هذا الجهاز.','language-not-supported':'اللغة العربية غير مدعومة للتعرّف الصوتي في هذا المتصفح.','aborted':''};
+function voiceNote(){if(SR||localStorage.getItem('sld_voice_note'))return;localStorage.setItem('sld_voice_note','1');setTimeout(()=>toast('الإدخال الصوتي 🎤 غير مدعوم في هذا المتصفح — استخدم Chrome أو Edge أو Safari للتحدث بدل الكتابة.'),1200)}
+function voiceStop(){if(VOICE.rec){VOICE.user=true;try{VOICE.rec.stop()}catch(e){}}}
+function voiceReset(){if(VOICE.btn){VOICE.btn.classList.remove('on');VOICE.btn.setAttribute('aria-pressed','false');VOICE.btn.title='إدخال بالصوت'}const w=VOICE.el&&VOICE.el.closest('.vw');if(w)w.classList.remove('listening');VOICE.rec=null;VOICE.el=null;VOICE.btn=null}
+function voiceStart(el,btn){if(!SR)return voiceNote();if(VOICE.rec){const same=VOICE.el===el;voiceStop();if(same)return}
+ if(!navigator.onLine)toast('أنت غير متصل — قد لا يعمل التعرّف الصوتي دون إنترنت في بعض المتصفحات.');
+ let r;try{r=new SR()}catch(e){toast('تعذّر تشغيل الإدخال الصوتي في هذا المتصفح.');return}
+ r.lang='ar-SA';r.interimResults=true;r.continuous=!/Android|iPhone|iPad/i.test(navigator.userAgent);r.maxAlternatives=1;
+ Object.assign(VOICE,{rec:r,el,btn,base:el.value,fin:'',user:false});
+ const put=t=>{const b=VOICE.base,sep=b&&!/\s$/.test(b)&&t?' ':'';let v=(b+sep+t);const mx=+el.getAttribute('maxlength')||0;if(mx>0)v=v.slice(0,mx);el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))};
+ r.onstart=()=>{btn.classList.add('on');btn.setAttribute('aria-pressed','true');btn.title='جارٍ الاستماع… اضغط للإيقاف';el.closest('.vw')?.classList.add('listening')};
+ r.onresult=e=>{let it='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)VOICE.fin+=(VOICE.fin&&!/\s$/.test(VOICE.fin)?' ':'')+t.trim();else it+=t}put((VOICE.fin+(it?(VOICE.fin?' ':'')+it.trim():'')).trim())};
+ r.onerror=e=>{const m=VERR[e.error];if(m===undefined)toast('تعذّر الإدخال الصوتي ('+e.error+').');else if(m)toast(m)};
+ r.onend=()=>{if(VOICE.rec===r){put(VOICE.fin.trim());el.dispatchEvent(new Event('change',{bubbles:true}));voiceReset()}};
+ try{r.start()}catch(e){voiceReset();toast('تعذّر بدء الاستماع، حاول مجدداً.')}el.focus()}
+function voiceWire(root){if(!root)return;const els=[...root.querySelectorAll('textarea,input:not([type]),input[type=text],input[type=search]')].filter(e=>!e.readOnly&&!e.disabled&&!e.closest('.vw')&&!e.hasAttribute('data-novoice'));
+ if(!SR){if(els.length)voiceNote();return}
+ els.forEach(el=>{const w=document.createElement('span');w.className='vw'+(el.tagName==='TEXTAREA'?' ta':'');el.parentNode.insertBefore(w,el);w.appendChild(el);
+  const b=document.createElement('button');b.type='button';b.className='micb';b.textContent='🎤';b.title='إدخال بالصوت';b.setAttribute('aria-label','إدخال بالصوت');b.setAttribute('aria-pressed','false');b.tabIndex=-1;
+  b.addEventListener('mousedown',e=>e.preventDefault());b.onclick=e=>{e.preventDefault();e.stopPropagation();voiceStart(el,b)};w.appendChild(b)})}
+
 /* ---------- Exams ---------- */
 const exRows=(c,k)=>DB[c].filter(x=>exKey(x.area)===k).sort((a,b)=>String(b.date||b.year||'').localeCompare(String(a.date||a.year||'')));
 const exFiles=k=>FILES.filter(f=>f.col==='exm:'+k||(['exmeet','exact','exres'].includes(f.col)&&DB[f.col].some(x=>x.id===f.rid&&exKey(x.area)===k))).length;
@@ -949,6 +973,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   secdel:async()=>{e.preventDefault();if(!confirm('حذف هذا الإصدار من الملف؟'))return;await delFile(id);render()},opimp:()=>$('#opImpIn').click(),
   optpl:()=>download('نموذج-استيراد-الخطة-التشغيلية.csv','\ufeff'+[['المجال','الهدف','البرنامج/المبادرة','الإجراءات','المسؤول','تاريخ البداية','تاريخ النهاية','مؤشر الأداء','المستهدف','الحالة','نسبة الإنجاز']].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n','text/csv'),
   opdel:async()=>{if(!confirm('حذف هذا الإصدار من ملف الخطة؟'))return;await delFile(id);render()},
+  vtask:()=>{openForm('tasks',null);voiceWire($('#dlgForm'));const t=$('#f_title');const b=t&&t.closest('.vw')?.querySelector('.micb');if(t&&b)voiceStart(t,b);else voiceNote()},
   impprint:()=>printHTML(impPrint(id)),svprint:()=>printHTML(svPrint(id)),
   svqadd:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;svQs(sv).push({id:'q'+(sv.qn=(sv.qn||0)+1),type:c,t:'',o:c==='mc'?['الخيار الأول','الخيار الثاني']:undefined});delete svLink[id];save();render();const ins=$$('[data-svq$="|t"]');ins.length&&ins[ins.length-1].focus()},
   svqdel:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv||!confirm('حذف السؤال؟'))return;sv.q=svQs(sv).filter(q=>q.id!==c);delete svLink[id];save();render()},
@@ -1054,3 +1079,8 @@ setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
  const hit=k=>fetch(C+k,{cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',mode:'cors'}).then(r=>r.ok).catch(()=>false);
  setTimeout(()=>{if(!sessionStorage.getItem('sld_v')){sessionStorage.setItem('sld_v','1');hit('visits')}
   if(!localStorage.getItem('sld_dev'))hit('devices').then(ok=>{if(ok)localStorage.setItem('sld_dev','1')})},3000)}catch(e){}})();
+
+/* voice wiring */
+(function(){try{const f=$('#dlgForm');if(f)new MutationObserver(()=>voiceWire(f)).observe(f,{childList:true});const d=$('#dlg');if(d)d.addEventListener('close',voiceStop);
+ if(SR)voiceWire($('.search'));addEventListener('hashchange',voiceStop);
+ const m=$('#main');if(m)new MutationObserver(()=>{if(view()==='survey')voiceWire(m.querySelector('.card'));if(view()==='tasks'&&!searchQ){const hb=m.querySelector('.head .btns');if(hb&&!hb.querySelector('[data-act=vtask]')){const b=document.createElement('button');b.className='btn ghost';b.dataset.act='vtask';b.textContent='🎤 مهمة بالصوت';if(!SR){b.disabled=true;b.title='غير مدعوم في هذا المتصفح'}hb.prepend(b)}}}).observe(m,{childList:true})}catch(e){}})();
