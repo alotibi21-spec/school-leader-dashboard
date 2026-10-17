@@ -237,3 +237,5 @@ dialog::backdrop{background:#0f274799}
 [data-theme=dark] .credit{color:#ff6b6b!important}
 .credit-print{color:#c00000!important}
 @media print{.credit,.credit-print{color:#c00000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+@media (max-width:820px){table.resp td>.cv{flex:1 1 0;min-width:0}}

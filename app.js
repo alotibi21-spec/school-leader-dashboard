@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.9.3';
+const APP_VERSION='1.10.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -134,6 +134,25 @@ Object.assign(S,{
   {k:'date',l:'الموعد المخطط',type:'date',req:1},{k:'hours',l:'الساعات المخططة',type:'number',min:0,max:500},{k:'owner',l:'المسؤول'},
   {k:'status',l:'الحالة',type:'select',opts:['مخطط','منفذ','مؤجل','ملغى'],def:'مخطط'},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
   cols:['date','title','type','target','hours','owner','status'],date:'date'}
+});
+const EXAREAS=[['nafs','الاختبارات الوطنية (نافس)','📊'],['qiyas','اختبار القدرات والتحصيلي','🎯'],['intl','الاختبارات الدولية (TIMSS، PIRLS، PISA…)','🌍']];
+const EXL=EXAREAS.map(a=>a[1]);const exArea=k=>EXAREAS.find(a=>a[0]===k);const exKey=l=>(EXAREAS.find(a=>a[1]===l)||[])[0];
+Object.assign(S,{
+ exmeet:{t:'اجتماعات الاختبارات',one:'اجتماع اختبارات',f:[
+  {k:'area',l:'المجال',type:'select',opts:EXL,req:1},{k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'title',l:'جدول الأعمال/الموضوع',req:1,full:1},
+  {k:'attendees',l:'الحضور',type:'textarea',full:1},{k:'minutes',l:'المحضر',type:'textarea',full:1},{k:'decisions',l:'القرارات والتوصيات',type:'textarea',full:1}],
+  cols:['date','area','title'],date:'date'},
+ exact:{t:'إجراءات وبرامج الاختبارات',one:'إجراء/برنامج',f:[
+  {k:'area',l:'المجال',type:'select',opts:EXL,req:1},{k:'date',l:'التاريخ',type:'date',req:1,def:'today'},{k:'title',l:'الإجراء/البرنامج',req:1,full:1},
+  {k:'type',l:'النوع',type:'select',opts:['برنامج إعداد وتهيئة','اختبار تجريبي','تحليل نتائج','خطة علاجية/إثرائية','ورشة للمعلمين','توعية أولياء الأمور','أخرى'],def:'برنامج إعداد وتهيئة'},
+  {k:'target',l:'الفئة المستهدفة',ph:'مثال: طلاب الصف الثالث المتوسط'},{k:'count',l:'عدد المستفيدين',type:'number',min:0},{k:'owner',l:'المسؤول/المنفذ'},
+  {k:'status',l:'الحالة',type:'select',opts:['مخطط','منفذ','ملغى'],def:'منفذ'},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['date','area','title','type','target','status'],date:'date'},
+ exres:{t:'نتائج الاختبارات',one:'نتيجة',f:[
+  {k:'area',l:'المجال',type:'select',opts:EXL,req:1},{k:'title',l:'الاختبار',req:1,ph:'مثال: نافس – الرياضيات'},{k:'year',l:'العام الدراسي',ph:'مثال: 1447هـ'},
+  {k:'grade',l:'الصف/الفئة'},{k:'subject',l:'المادة/المجال'},{k:'score',l:'النتيجة',ph:'كما وردت في التقرير الرسمي'},{k:'level',l:'المستوى/التصنيف'},
+  {k:'date',l:'تاريخ صدور النتيجة',type:'date'},{k:'notes',l:'ملاحظات وتحليل',type:'textarea',full:1}],
+  cols:['year','area','title','grade','subject','score','level'],date:'date'}
 });
 const DONE={tasks:'مكتملة',actions:'منجز',oplan:'منجز'};
 const lbl=(c,k)=>k==='rate'?'نسبة الحضور':(S[c].f.find(x=>x.k===k)||{}).l||k;
@@ -312,7 +331,7 @@ function listView(c){const sc=S[c];const F=flt[c]=flt[c]||{q:'',status:'',domain
  ${hasDom?`<select data-f="domain" aria-label="المجال"><option value="">كل المجالات</option>${DOMAINS.map(o=>`<option ${o===F.domain?'selected':''}>${o}</option>`).join('')}</select>`:''}
  <label class="small">من <input type="date" data-f="from" value="${F.from}"></label><label class="small">إلى <input type="date" data-f="to" value="${F.to}"></label></div>${extra}
  ${c==='tasks'?taskTabs(F)+(rows.length?taskCards(rows.filter(x=>!F.period||x.period===F.period),F):''):''}${c==='tasks'&&rows.length?'':rows.length?table(c,rows,sc.cols,F.q):`<div class="empty">لا توجد سجلات${DB[c].length?' مطابقة للتصفية':' بعد. ابدأ بإضافة '+sc.one+'.'}</div>`}</div>`}
-function table(c,rows,cols,hl){return `<div class="tbl-wrap"><table class="resp"><thead><tr>${cols.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(x=>`<tr class="${isOver(c,x)?'over':''}">${cols.map(k=>`<td data-l="${esc(lbl(c,k))}">${cellVal(c,k,x,hl)}${k===cols[0]&&x.sample?' <span class="pill sample">تجريبي</span>':''}${k===S[c].date&&isOver(c,x)?' <span class="pill red">متأخرة</span>':''}</td>`).join('')}<td data-l="">${c==='tasks'&&x.status!=='مكتملة'?`<button class="btn sm gold" data-act="done" data-c="${c}" data-id="${x.id}" title="تعليم كمكتملة">✓</button> `:''}${evBtn(c,x.id)} <button class="btn sm ghost" data-act="edit" data-c="${c}" data-id="${x.id}">تعديل</button></td></tr>`).join('')}</tbody></table></div>`}
+function table(c,rows,cols,hl){return `<div class="tbl-wrap"><table class="resp"><thead><tr>${cols.map(k=>`<th>${esc(lbl(c,k))}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(x=>`<tr class="${isOver(c,x)?'over':''}">${cols.map(k=>`<td data-l="${esc(lbl(c,k))}"><span class="cv">${cellVal(c,k,x,hl)}</span>${k===cols[0]&&x.sample?' <span class="pill sample">تجريبي</span>':''}${k===S[c].date&&isOver(c,x)?' <span class="pill red">متأخرة</span>':''}</td>`).join('')}<td data-l="">${c==='tasks'&&x.status!=='مكتملة'?`<button class="btn sm gold" data-act="done" data-c="${c}" data-id="${x.id}" title="تعليم كمكتملة">✓</button> `:''}${evBtn(c,x.id)} <button class="btn sm ghost" data-act="edit" data-c="${c}" data-id="${x.id}">تعديل</button></td></tr>`).join('')}</tbody></table></div>`}
 
 function stats(){const t=today(),m=t.slice(0,7),wk=addDays(t,-6),d30=addDays(t,-29);
  const att=DB.attendance.filter(x=>x.date>=d30&&x.date<=t),e=att.reduce((s,x)=>s+(+x.enrolled||0),0),ab=att.reduce((s,x)=>s+(+x.absent||0),0);
@@ -348,6 +367,7 @@ function chartsBlock(){const t=today();
   ['تواصل أولياء الأمور المغلق',ratio(DB.parents,x=>x.status==='مغلقة'),DB.parents.length+' تواصل','#parents'],
   ['إنجاز مهام اللجان',(()=>{const a=DB.committees.map(comPct).filter(Boolean);const T=a.reduce((s,x)=>s+x.total,0);return T?Math.round(a.reduce((s,x)=>s+x.done,0)/T*100):null})(),DB.committees.filter(c=>comPct(c)).length+' لجنة بمهام','#committees'],
   ['اللجان الفاعلة (اجتماع خلال 60 يوماً)',ratio(DB.committees.filter(x=>x.status!=='منتهية'),c=>comMeetings(c).some(m=>m.date>=addDays(t,-60))),DB.committees.filter(x=>x.status!=='منتهية').length+' لجنة سارية','#committees'],
+  ['إجراءات الاختبارات المنفذة',ratio(DB.exact.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.exact.length+' إجراء — '+DB.exmeet.length+' اجتماع','#exams'],
   ['خطة النمو المهني',ratio(DB.pdplan.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.pdplan.length+' برنامج','#pdplan'],
   ['برامج النمو المهني المنفذة',ratio(DB.pd.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.pd.reduce((a,x)=>a+(x.status==='منفذ'?+x.hours||0:0),0)+' ساعة','#pd'],
   ['تغطية أيام المناوبة',DB.duty.length?Math.round(new Set(DB.duty.map(x=>x.day)).size/5*100):null,new Set(DB.duty.map(x=>x.day)).size+' من 5 أيام','#duty']];
@@ -398,6 +418,7 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  ${K('تنفيذ خطة التوجيه',st.gPlan==null?'—':st.gPlan+'%',DB.gplan.length+' برنامج مخطط','gold')}
  ${K('ساعات النمو المهني المنفذة',st.pdHours,st.pdCount+' برنامج — '+st.pdBen+' مستفيد','green')}
  ${K('تنفيذ خطة النمو المهني',st.pdPlan==null?'—':st.pdPlan+'%',DB.pdplan.length+' برنامج مخطط','gold')}
+ ${K('الاختبارات',DB.exmeet.length+' اجتماع',DB.exact.filter(x=>x.status==='منفذ').length+' إجراء منفذ — '+DB.exres.length+' نتيجة','gold')}
  ${K('الشواهد المرفوعة',st.ev,'<a href="#evidence">معرض الشواهد</a>')}
  </div>
  ${chartsBlock()}
@@ -442,7 +463,7 @@ function reviewView(){return `<div class="head"><div><h2>المراجعة الذ
 function auditView(){const a=DB.audit.slice().reverse();return `<div class="head"><div><h2>سجل التغييرات</h2><div class="muted small">آخر ${a.length} عملية (يُحتفظ بآخر 1000)</div></div><div class="btns"><button class="btn ghost" data-act="auditcsv">تصدير CSV</button></div></div>
  <div class="card">${a.length?`<div class="tbl-wrap"><table class="resp"><thead><tr><th>الوقت</th><th>العملية</th><th>القسم</th><th>العنصر</th></tr></thead><tbody>${a.slice(0,300).map(x=>`<tr><td data-l="الوقت">${esc(new Date(x.t).toLocaleString('ar-SA-u-nu-latn'))}</td><td data-l="العملية">${esc(x.op)}</td><td data-l="القسم">${esc(S[x.col]?.t||x.col||'')}</td><td data-l="العنصر">${esc(x.title)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لا توجد تغييرات بعد</div>'}</div>`}
 
-function reportsView(){const opt=['summary|الملخص العام','weekly|التقرير الأسبوعي',...COLS.map(c=>c+'|'+S[c].t),'review|المراجعة الذاتية'];
+function reportsView(){const opt=['summary|الملخص العام','weekly|التقرير الأسبوعي',...COLS.map(c=>c+'|'+S[c].t),'review|المراجعة الذاتية','examsall|الاختبارات (تقرير شامل)'];
  return `<div class="head"><div><h2>التقارير والتصدير</h2><div class="muted small">اختر التقرير ثم «طباعة» واحفظه PDF من نافذة الطباعة، أو صدّره CSV/Excel.</div></div></div>
  <div class="card"><div class="filters"><select id="rpType" aria-label="نوع التقرير">${opt.map(o=>{const[a,b]=o.split('|');return `<option value="${a}">${b}</option>`}).join('')}</select>
  <label class="small">من <input type="date" id="rpFrom"></label><label class="small">إلى <input type="date" id="rpTo"></label>
@@ -476,12 +497,12 @@ function searchView(q){const ql=q.toLowerCase();let out='',n=0;
 /* ---------- Render ---------- */
 let searchQ='';
 function render(){const v=view(),m=$('#main');
- $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v||(v==='committee'&&a.dataset.v==='committees')));
+ $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v||(v==='committee'&&a.dataset.v==='committees')||(['exam','exmeet','exact','exres'].includes(v)&&a.dataset.v==='exams')));
  if(searchQ)m.innerHTML=searchView(searchQ);
  else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v]&&v!=='oplan')m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
- else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='oplan')m.innerHTML=oplanView();else if(v==='committee')m.innerHTML=committeeView((location.hash.split('?')[1]||''));else if(v==='settings')m.innerHTML=settingsView();else if(v==='evidence')m.innerHTML=evidenceView();else m.innerHTML=dashboard();
+ else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='oplan')m.innerHTML=oplanView();else if(v==='exams')m.innerHTML=examsView();else if(v==='exam')m.innerHTML=examView((location.hash.split('?')[1]||''));else if(v==='committee')m.innerHTML=committeeView((location.hash.split('?')[1]||''));else if(v==='settings')m.innerHTML=settingsView();else if(v==='evidence')m.innerHTML=evidenceView();else m.innerHTML=dashboard();
  if(!searchQ&&v==='committees'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=comCards();if(w.firstElementChild)hd.after(w.firstElementChild)}
- if(!searchQ&&SEC_VIEWS.includes(v)&&v!=='oplan'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=secCard(v);hd?hd.after(w.firstElementChild):m.prepend(w.firstElementChild)}
+ if(!searchQ&&SEC_VIEWS.includes(v)&&v!=='oplan'&&v!=='exams'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=secCard(v);hd?hd.after(w.firstElementChild):m.prepend(w.firstElementChild)}
  m.innerHTML=fem(m.innerHTML);chrome()}
 let NAV0;function chrome(){const s=DB.settings;document.documentElement.dataset.g=s.gender==='بنات'?'girls':'boys';applyThemeColor();$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';NAV0=NAV0||$('#nav').innerHTML;const nv=fem(NAV0);if($('#nav').dataset.g!==String(s.gender)){$('#nav').innerHTML=nv;$('#nav').dataset.g=s.gender}$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view()));document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
  const lg=$('#topLogo');if(s.logo){lg.src=s.logo;lg.hidden=false}else lg.hidden=true;
@@ -546,6 +567,7 @@ function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${fr
   DOMAINS.forEach(d=>{h+=`<section><h3>${d} — ${reviewPct(d)??'—'}${reviewPct(d)!=null?'%':''}</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المؤشر</th><th>التقدير</th><th>الشواهد</th></tr>${REVIEW[d].map((q,i)=>{const v=(DB.review[d]||{})[i]||{};return `<tr><td>${esc(q)}</td><td>${({2:'متحقق',1:'متحقق جزئياً',0:'غير متحقق'})[v.s]||'—'}</td><td>${esc(v.n||'')}${evPrint('review',d+'|'+i)}</td></tr>`}).join('')}</table></section>`})}
  else if(type==='oplan'){const pf=planFiles()[0];h=printHead(S.oplan.t,(pf?'ملف الخطة المعتمد: '+esc(pf.name)+(pf.meta&&pf.meta.year?' — العام '+esc(pf.meta.year):'')+' — ':'')+'نسبة الإنجاز العامة: '+(stats().opPct??'—')+'%');DOMAINS.forEach(d=>{const r=rowsFor('oplan',from,to).filter(x=>x.domain===d);h+=`<section><h3>${d} (${r.length})</h3>${ptable('oplan',r)}</section>`})}
  else if(type==='tasks'){const r=rowsFor('tasks',from,to);h=printHead(S.tasks.t,(range?range+' — ':'')+'الإنجاز: '+r.filter(x=>x.status==='مكتملة').length+' من '+r.length);PERIODS.forEach(p=>{const a=r.filter(x=>x.period===p).sort((x,y)=>(DOMAINS.indexOf(x.domain)-DOMAINS.indexOf(y.domain))||String(x.due).localeCompare(String(y.due)));if(a.length)h+=`<section><h3>${PICON[p]} المهام — ${p} (${a.filter(x=>x.status==='مكتملة').length}/${a.length})</h3>${ptable('tasks',a)}</section>`})}
+ else if(type==='examsall'){h=examPrint('')}
  else if(type==='committees'){h=printHead(S.committees.t,range);h+=`<section>${ptable('committees',rowsFor('committees',from,to))}</section>`;h+=`<section><h3>ملخص الاجتماعات</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>اللجنة</th><th>الرئيس</th><th>عدد الاجتماعات</th><th>آخر اجتماع</th><th>الملفات</th></tr>${DB.committees.map(c=>{const ms=comMeetings(c);return `<tr><td>${esc(comName(c))}</td><td>${esc(c.head||'')}</td><td>${ms.length}</td><td>${ms[0]?fmtPlain(ms[0].date):''}</td><td>${comFiles(c)}</td></tr>`}).join('')}</table></section>`}
  else if(S[type]){let r=rowsFor(type,from,to);h=printHead(S[type].t,range)+`<section>${ptable(type,r)}</section>`}
  const pv=type==='summary'||type==='weekly'?'reports':type;h+=secPrint(pv);
@@ -626,8 +648,8 @@ async function addFiles(c,rid,list,meta){if(!idb){toast('تخزين الملفا
  if(n){audit('رفع شواهد',c,{title:evTitle(c,rid)+' ('+n+')'});save();toast('رُفع '+n+' ملف')}}
 async function delFile(id){const f=FILES.find(x=>x.id===id);if(!f)return;await idbReq(tx('readwrite').delete(id));FILES=FILES.filter(x=>x.id!==id);if(URLS[id]){URL.revokeObjectURL(URLS[id]);delete URLS[id]}audit('حذف شاهد',f.col,{title:f.name});save()}
 async function delFilesOf(c,rid){for(const f of filesOf(c,rid))await delFile(f.id)}
-function evTitle(c,rid){if(c==='comtask'){const[cid,tid]=rid.split(':');const cm=DB.committees.find(x=>x.id===cid);const t=cm&&cm.off&&(cm.off.tasks||[]).find(x=>x.id===tid);return comName(cm)+' — مهمة: '+(t?t.t.slice(0,60):'')}if(c.startsWith('com:'))return 'ملفات '+viewTitle(c);if(c.startsWith('sec:'))return 'ملفات القسم: '+viewTitle(c.slice(4));if(c==='opfile')return 'ملف الخطة التشغيلية';if(c==='review'){const[d,i]=rid.split('|');return d+': '+(REVIEW[d]||[])[i]}const x=(DB[c]||[]).find(y=>y.id===rid);return itemTitle(c,x)||'(سجل محذوف)'}
-const secName=c=>c==='comtask'?'اللجان — مهام اللجان':c.startsWith('com:')?'اللجان — '+viewTitle(c):c.startsWith('sec:')?viewTitle(c.slice(4))+' — ملفات القسم':c==='opfile'?'ملف الخطة التشغيلية':c==='review'?'المراجعة الذاتية':(S[c]?.t||c);
+function evTitle(c,rid){if(c==='comtask'){const[cid,tid]=rid.split(':');const cm=DB.committees.find(x=>x.id===cid);const t=cm&&cm.off&&(cm.off.tasks||[]).find(x=>x.id===tid);return comName(cm)+' — مهمة: '+(t?t.t.slice(0,60):'')}if(c.startsWith('com:')||c.startsWith('exm:'))return 'ملفات '+viewTitle(c);if(c.startsWith('sec:'))return 'ملفات القسم: '+viewTitle(c.slice(4));if(c==='opfile')return 'ملف الخطة التشغيلية';if(c==='review'){const[d,i]=rid.split('|');return d+': '+(REVIEW[d]||[])[i]}const x=(DB[c]||[]).find(y=>y.id===rid);return itemTitle(c,x)||'(سجل محذوف)'}
+const secName=c=>c.startsWith('exm:')?viewTitle(c)+' — ملفات':c==='comtask'?'اللجان — مهام اللجان':c.startsWith('com:')?'اللجان — '+viewTitle(c):c.startsWith('sec:')?viewTitle(c.slice(4))+' — ملفات القسم':c==='opfile'?'ملف الخطة التشغيلية':c==='review'?'المراجعة الذاتية':(S[c]?.t||c);
 function evBtn(c,rid){const n=filesOf(c,rid).length;return `<button type="button" class="btn sm ghost evb" data-act="ev" data-c="${c}" data-id="${esc(rid)}" title="تحميل شواهد العمل" aria-label="تحميل شواهد العمل (${n})">📎${n?`<span class="evn">${n}</span>`:''}</button>`}
 function thumb(f,del=true){return `<div class="ev-it">${isImg(f)?`<img src="${furl(f)}" alt="${esc(f.name)}" loading="lazy">`:`<div class="ev-ic">${ficon(f)}</div>`}<div class="ev-nm" title="${esc(f.name)}">${esc(f.name)}</div><div class="small muted">${fsize(f.size)}</div>
  <div class="btns"><button type="button" class="btn sm ghost" data-act="evopen" data-id="${f.id}">عرض</button><button type="button" class="btn sm ghost" data-act="evdl" data-id="${f.id}">تنزيل</button>${del?`<button type="button" class="btn sm ghost" data-act="evdel" data-id="${f.id}" aria-label="حذف">🗑</button>`:''}</div></div>`}
@@ -657,6 +679,25 @@ async function restoreFiles(arr){if(!idb)return 0;await idbReq(tx('readwrite').c
 /* ---------- Operational plan ---------- */
 const planFiles=()=>FILES.filter(f=>f.col==='opfile').sort((a,b)=>b.added.localeCompare(a.added));
 function oplanView(){return secCard('oplan')+`<div class="card"><div class="row" style="flex-wrap:wrap"><b class="grow">استيراد بنود الخطة</b><button class="btn ghost" data-act="optpl">نموذج استيراد CSV</button><button class="btn ghost" data-act="opimp">استيراد بنود من Excel/CSV</button></div></div>`+listView('oplan')}
+/* ---------- Exams ---------- */
+const exRows=(c,k)=>DB[c].filter(x=>exKey(x.area)===k).sort((a,b)=>String(b.date||b.year||'').localeCompare(String(a.date||a.year||'')));
+const exFiles=k=>FILES.filter(f=>f.col==='exm:'+k||(['exmeet','exact','exres'].includes(f.col)&&DB[f.col].some(x=>x.id===f.rid&&exKey(x.area)===k))).length;
+function examsView(){return `<div class="head"><div><h2>📝 الاختبارات</h2><div class="muted small">الاختبارات الوطنية، والقدرات والتحصيلي، والاختبارات الدولية — اجتماعات وإجراءات وملفات ونتائج</div></div><div class="btns"><button class="btn ghost" data-act="exprint" data-id="">طباعة الكل</button></div></div>
+ <div class="comgrid">${EXAREAS.map(([k,l,ic])=>{const a=exRows('exact',k),ms=exRows('exmeet',k),r=exRows('exres',k),d=a.filter(x=>x.status==='منفذ').length,pl=a.filter(x=>x.status!=='ملغى').length;
+  return `<a class="comcard" href="#exam?${k}"><b>${ic} ${esc(l)}</b><div class="chips" style="margin-top:8px">${chip('🗓️ '+ms.length+' اجتماع','blue')}${chip('🧪 '+a.length+' إجراء','gray')}${chip('📈 '+r.length+' نتيجة','gray')}${chip('📁 '+exFiles(k)+' ملف','gray')}</div>
+  ${pl?`<div class="row small" style="margin-top:8px"><span>المنفذ</span><div class="bar grow"><i style="width:${Math.round(d/pl*100)}%"></i></div><b>${Math.round(d/pl*100)}%</b></div>`:''}${ms[0]?`<div class="small muted" style="margin-top:6px">آخر اجتماع: ${fmtDate(ms[0].date,false)}</div>`:''}</a>`}).join('')}</div>`}
+function examView(k){const a=exArea(k);if(!a)return '<div class="card empty">المجال غير موجود. <a href="#exams">العودة</a></div>';
+ const blk=(c,ttl,cols,addl)=>{const r=exRows(c,k);return `<div class="card"><div class="row"><h3 class="grow" style="margin:0">${ttl} (${r.length})</h3><button class="btn gold sm" data-act="exadd" data-c="${c}" data-id="${k}">＋ ${addl}</button></div>${r.length?table(c,r,cols,''):'<div class="empty">لا توجد سجلات بعد</div>'}</div>`};
+ return `<div class="head"><div><a href="#exams" class="small">→ الاختبارات</a><h2>${a[2]} ${esc(a[1])}</h2></div><div class="btns"><button class="btn ghost" data-act="exprint" data-id="${k}">طباعة</button></div></div>
+ ${secCard('exm:'+k)}
+ ${blk('exmeet','سجل الاجتماعات والمحاضر',['date','title'],'اجتماع/محضر')}
+ ${blk('exact','الإجراءات والبرامج (إعداد، اختبارات تجريبية، تحليل نتائج…)',['date','title','type','target','status'],'إجراء/برنامج')}
+ ${blk('exres','النتائج (تُدخل من التقارير الرسمية فقط)',['year','title','grade','subject','score','level'],'نتيجة')}`}
+function examPrint(k){const ks=k?[k]:EXAREAS.map(a=>a[0]);let h=printHead(k?exArea(k)[1]:'تقرير الاختبارات',k?'الاختبارات':'الاختبارات الوطنية والقدرات والتحصيلي والدولية');
+ ks.forEach(k=>{const a=exArea(k);if(!k||ks.length>1)h+=`<section><h2>${esc(a[1])}</h2></section>`;
+  [['exmeet','الاجتماعات'],['exact','الإجراءات والبرامج'],['exres','النتائج']].forEach(([c,t])=>{const r=exRows(c,k);h+=`<section><h3>${t} (${r.length})</h3>${ptable(c,r)}</section>`});
+  exRows('exmeet',k).filter(m=>m.minutes||m.decisions).forEach(m=>{h+=`<section><h3>محضر: ${esc(m.title)} — ${fmtPlain(m.date)}</h3>${m.minutes?`<p style="white-space:pre-line">${esc(m.minutes)}</p>`:''}${m.decisions?`<p><b>القرارات:</b> <span style="white-space:pre-line">${esc(m.decisions)}</span></p>`:''}</section>`});
+  h+=secPrint('exm:'+k)});return h}
 /* ---------- Committees cards & page ---------- */
 const comMeetings=c=>DB.meetings.filter(m=>m.committee&&m.committee===c.name).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
 const comFiles=c=>FILES.filter(f=>f.col==='com:'+c.id).length;
@@ -699,12 +740,12 @@ function comPrint(c){const ms=comMeetings(c);const tp=comPct(c);let h=printHead(
  h+=`<section><h3>سجل الاجتماعات (${ms.length})</h3>${ptable('meetings',ms)}</section>`+ms.filter(m=>m.minutes||m.decisions).map(m=>`<section><h3>محضر ${esc(m.title)} — ${fmtPlain(m.date)}</h3>${m.minutes?`<p style="white-space:pre-line">${esc(m.minutes)}</p>`:''}${m.decisions?`<p><b>القرارات:</b> <span style="white-space:pre-line">${esc(m.decisions)}</span></p>`:''}</section>`).join('')+secPrint('com:'+c.id);
  const ef=evPrint('committees',c.id);if(ef)h+=`<section><h3>شواهد اللجنة</h3>${ef}</section>`;return h}
 /* ---------- Section-level files (all sections) ---------- */
-const SEC_VIEWS=[...Object.keys(S),'templates','review','reports'];
-const secCol=v=>v==='oplan'?'opfile':v.startsWith('com:')?v:'sec:'+v;
-const viewTitle=v=>v.startsWith('com:')?(comName(DB.committees.find(c=>'com:'+c.id===v))||'لجنة محذوفة'):S[v]?.t||({templates:'قوالب المهام',review:'المراجعة الذاتية',reports:'التقارير والتصدير'})[v]||v;
+const SEC_VIEWS=[...Object.keys(S),'templates','review','reports','exams'];
+const secCol=v=>v==='oplan'?'opfile':v.startsWith('com:')||v.startsWith('exm:')?v:'sec:'+v;
+const viewTitle=v=>v.startsWith('exm:')?'الاختبارات — '+((exArea(v.slice(4))||[])[1]||''):v==='exams'?'الاختبارات':v.startsWith('com:')?(comName(DB.committees.find(c=>'com:'+c.id===v))||'لجنة محذوفة'):S[v]?.t||({templates:'قوالب المهام',review:'المراجعة الذاتية',reports:'التقارير والتصدير'})[v]||v;
 const grpOf=f=>(f.meta&&f.meta.group)||(f.col==='opfile'?'plan':f.id);
 function secGroups(col){const g={};FILES.filter(f=>f.col===col).forEach(f=>{(g[grpOf(f)]=g[grpOf(f)]||[]).push(f)});return Object.values(g).map(a=>a.sort((x,y)=>y.added.localeCompare(x.added))).sort((a,b)=>b[0].added.localeCompare(a[0].added))}
-function secCard(v){const col=secCol(v),gs=secGroups(col),open=!!gs.length||v==='oplan'||v==='pd'||v.startsWith('com:');
+function secCard(v){const col=secCol(v),gs=secGroups(col),open=!!gs.length||v==='oplan'||v==='pd'||v.startsWith('com:')||v.startsWith('exm:');
  return `<details class="card seccard" ${open?'open':''}><summary class="row" style="flex-wrap:wrap;cursor:pointer"><b class="grow">📁 ${v==='oplan'?'ملف الخطة التشغيلية المعتمد':v.startsWith('com:')?'ملفات '+esc(viewTitle(v))+' (المحاضر، القرارات، التشكيل…)':'ملفات القسم: '+esc(viewTitle(v))} <span class="pill">${gs.length}</span></b>
  <button type="button" class="btn gold sm" data-act="secup" data-c="${v}">⬆️ رفع ملف</button></summary>
  <div class="ev-drop sec-drop" data-act="secup" data-c="${v}" tabindex="0" style="margin:10px 0;padding:10px">اسحب الملفات هنا أو اضغط للاختيار — PDF، Word، Excel، PowerPoint، صور (حتى 15 م.ب). تُحفظ على هذا الجهاز وتعمل دون اتصال وتُضمَّن في النسخة الاحتياطية.</div>
@@ -715,7 +756,7 @@ async function secUpload(v,group,files){const col=secCol(v);files=[...files];if(
  const year=prompt('العام الدراسي لهذا الملف:',DB.settings.year||'');if(year===null)return;const note=prompt('ملاحظة (اختياري):','')||'';
  for(const f of files){await addFiles(col,'section',[f],{year:year.trim().slice(0,40),note:note.trim().slice(0,200),group:group||uid()})}render()}
 function secPrint(v){const gs=secGroups(secCol(v));if(!gs.length)return'';return `<section><h3>ملفات القسم</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>الملف</th><th>العام الدراسي</th><th>ملاحظة</th><th>تاريخ الرفع</th><th>الإصدارات</th></tr>${gs.map(a=>{const f=a[0];return `<tr><td>${isImg(f)?`<img src="${furl(f)}" style="width:60px;height:60px;object-fit:cover" alt=""> `:ficon(f)+' '}${esc(f.name)}</td><td>${esc(f.meta?.year||'')}</td><td>${esc(f.meta?.note||'')}</td><td>${fmtPlain(f.added.slice(0,10))}</td><td>${a.length}</td></tr>`}).join('')}</table></section>`}
-function navCounts(){const n={};SEC_VIEWS.forEach(v=>n[v]=0);FILES.forEach(f=>{let v=f.col.startsWith('com:')||f.col==='comtask'?'committees':f.col==='opfile'?'oplan':f.col.startsWith('sec:')?f.col.slice(4):f.col;if(n[v]!=null)n[v]++});return n}
+function navCounts(){const n={};SEC_VIEWS.forEach(v=>n[v]=0);FILES.forEach(f=>{let v=f.col.startsWith('exm:')||['exmeet','exact','exres','sec:exmeet','sec:exact','sec:exres'].includes(f.col)?'exams':f.col.startsWith('com:')||f.col==='comtask'?'committees':f.col==='opfile'?'oplan':f.col.startsWith('sec:')?f.col.slice(4):f.col;if(n[v]!=null)n[v]++});return n}
 const OPMAP={domain:['المجال'],goal:['الهدف','الأهداف'],program:['البرنامج','المبادرة','البرنامج/المبادرة','البرنامج / المبادرة'],actions:['الإجراءات','الإجراء'],owner:['المسؤول','المسئول','المنفذ'],start:['تاريخ البداية','البداية','من'],end:['تاريخ النهاية','النهاية','إلى','الموعد'],kpi:['مؤشر الأداء','المؤشر'],target:['المستهدف','القيمة المستهدفة'],status:['الحالة'],progress:['نسبة الإنجاز','نسبة الإنجاز %','الإنجاز'],notes:['ملاحظات']};
 function normDate(v){if(v==null||v==='')return'';if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return iso(new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()))}
  if(v instanceof Date&&!isNaN(v))return iso(v);v=String(v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));let m;
@@ -750,6 +791,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   secdel:async()=>{e.preventDefault();if(!confirm('حذف هذا الإصدار من الملف؟'))return;await delFile(id);render()},opimp:()=>$('#opImpIn').click(),
   optpl:()=>download('نموذج-استيراد-الخطة-التشغيلية.csv','\ufeff'+[['المجال','الهدف','البرنامج/المبادرة','الإجراءات','المسؤول','تاريخ البداية','تاريخ النهاية','مؤشر الأداء','المستهدف','الحالة','نسبة الإنجاز']].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n','text/csv'),
   opdel:async()=>{if(!confirm('حذف هذا الإصدار من ملف الخطة؟'))return;await delFile(id);render()},
+  exadd:()=>{const a=exArea(id);openForm(c,null);const f=$('#dlgForm');if(a&&f.elements.area)f.elements.area.value=a[1]},
+  exprint:()=>{$('#printArea').innerHTML=fem(examPrint(id))+sig();const imgs=$$('#printArea img');Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r}))).then(()=>setTimeout(()=>window.print(),50))},
   comoff:()=>{const cm=DB.committees.find(x=>x.id===id);cm&&editOfficial(cm)},
   comprint:()=>{const cm=DB.committees.find(x=>x.id===id);if(!cm)return;$('#printArea').innerHTML=fem(comPrint(cm))+sig();const imgs=$$('#printArea img');Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r}))).then(()=>setTimeout(()=>window.print(),50))},
   commeet:()=>{const cm=DB.committees.find(x=>x.id===id);if(!cm)return;openForm('meetings',null);const f=$('#dlgForm');f.elements.committee.value=cm.name;f.elements.title.value='اجتماع '+cm.name;f.elements.type.value=cm.name==='لجنة التميز'?'لجنة التميز':cm.name==='لجنة التوجيه الطلابي'?'الإرشاد':'أخرى'},
