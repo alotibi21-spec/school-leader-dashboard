@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.9.2';
+const APP_VERSION='1.9.3';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -834,3 +834,9 @@ loadFiles().then(()=>{if(FILES.length)render()});
 load();mergeTemplates();mergeCommittees();mergeOfficial();if(!DB.settings.setupDone&&DB.settings.school)DB.settings.setupDone=true;setTheme(DB.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));net();render();
 if(!DB.settings.setupDone)setupWizard();
 setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
+
+/* ---------- Anonymous usage counter (no school data; only +1 hits) ---------- */
+(function(){try{if(!/github\.io$/.test(location.hostname)||!navigator.onLine)return;const C='https://abacus.jasoncameron.dev/hit/alotibi21-sld/';
+ const hit=k=>fetch(C+k,{cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',mode:'cors'}).then(r=>r.ok).catch(()=>false);
+ setTimeout(()=>{if(!sessionStorage.getItem('sld_v')){sessionStorage.setItem('sld_v','1');hit('visits')}
+  if(!localStorage.getItem('sld_dev'))hit('devices').then(ok=>{if(ok)localStorage.setItem('sld_dev','1')})},3000)}catch(e){}})();
