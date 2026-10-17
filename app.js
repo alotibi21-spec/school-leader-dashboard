@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.10.0';
+const APP_VERSION='1.11.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -20,7 +20,7 @@ function fmtDate(s,withHijri=true){if(!s)return'—';const d=parseD(s);if(isNaN(
 function fmtPlain(s){if(!s)return'';const d=parseD(s);if(isNaN(d))return s;let h='';try{h=d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){}return s+(h?' ('+h+')':'')}
 
 /* ---------- Feminine labels for girls' schools ---------- */
-const FEM=[['قائد/مدير','قائدة/مديرة'],['قائد المدرسة','قائدة المدرسة'],['مدير المدرسة','مديرة المدرسة'],['المعلمين','المعلمات'],['المعلمون','المعلمات'],['معلمو','معلمات'],['المدرب','المدربة'],['معلمين','معلمات'],['للمعلمين','للمعلمات'],['المعلم','المعلمة'],['معلم','معلمة'],['الطلاب','الطالبات'],['للطلاب','للطالبات'],['طلاب','طالبات'],['الطالب','الطالبة'],['طالب','طالبة'],['المتفوقين','المتفوقات'],['الموجه الطلابي','الموجهة الطلابية'],['رائد النشاط','رائدة النشاط'],['المكرَّم','المكرَّمة'],['المكلف','المكلفة'],['لمدير المدرسة','لمديرة المدرسة'],['ولمدير المدرسة','ولمديرة المدرسة'],['وكلاء','وكيلات'],['وكيل','وكيلة'],['مساعد إداري','مساعدة إدارية'],['رئيس اللجنة','رئيسة اللجنة'],['ولرئيس اللجنة','ولرئيسة اللجنة'],['لرئيس اللجنة','لرئيسة اللجنة'],['الموجه الطلابي','الموجهة الطلابية'],['المرشد الطلابي','المرشدة الطلابية'],['المرشد','المرشدة'],['المستفيدين','المستفيدات'],['الوكلاء','الوكيلات'],['المحتاجين','المحتاجات'],['منسوبين','منسوبات'],['المنسوبين','المنسوبات'],['إداري','إدارية']];
+const FEM=[['قائد/مدير','قائدة/مديرة'],['قائد المدرسة','قائدة المدرسة'],['مدير المدرسة','مديرة المدرسة'],['المعلمين','المعلمات'],['المعلمون','المعلمات'],['معلمو','معلمات'],['المدرب','المدربة'],['معلمين','معلمات'],['للمعلمين','للمعلمات'],['المعلم','المعلمة'],['معلم','معلمة'],['الطلاب','الطالبات'],['للطلاب','للطالبات'],['طلاب','طالبات'],['الطالب','الطالبة'],['طالب','طالبة'],['المتفوقين','المتفوقات'],['الموجه الطلابي','الموجهة الطلابية'],['رائد النشاط','رائدة النشاط'],['المكرَّم','المكرَّمة'],['المكلف','المكلفة'],['لمدير المدرسة','لمديرة المدرسة'],['الإداريين','الإداريات'],['الإداريون','الإداريات'],['ولمدير المدرسة','ولمديرة المدرسة'],['وكلاء','وكيلات'],['وكيل','وكيلة'],['مساعد إداري','مساعدة إدارية'],['رئيس اللجنة','رئيسة اللجنة'],['ولرئيس اللجنة','ولرئيسة اللجنة'],['لرئيس اللجنة','لرئيسة اللجنة'],['الموجه الطلابي','الموجهة الطلابية'],['المرشد الطلابي','المرشدة الطلابية'],['المرشد','المرشدة'],['المستفيدين','المستفيدات'],['الوكلاء','الوكيلات'],['المحتاجين','المحتاجات'],['منسوبين','منسوبات'],['المنسوبين','المنسوبات'],['إداري','إدارية']];
 const FEMRX=FEM.map(([a,b])=>[new RegExp('(?<![\u0600-\u06FF])'+a.replace('/','\\/')+'(?![\u0600-\u06FF])','g'),b]);
 const isGirls=()=>DB&&DB.settings.gender==='بنات';
 const fem=h=>{if(!isGirls())return h;FEMRX.forEach(([r,b])=>h=h.replace(r,b));return h};
@@ -154,8 +154,158 @@ Object.assign(S,{
   {k:'date',l:'تاريخ صدور النتيجة',type:'date'},{k:'notes',l:'ملاحظات وتحليل',type:'textarea',full:1}],
   cols:['year','area','title','grade','subject','score','level'],date:'date'}
 });
+/* ---------- Shared: base64url + compression ---------- */
+const b64u={enc:u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+ dec:t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}};
+async function packJSON(o){const u=new TextEncoder().encode(JSON.stringify(o));if(window.CompressionStream){try{const z=new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());return 'z.'+b64u.enc(z)}catch(e){}}return 'j.'+b64u.enc(u)}
+async function unpackJSON(t){const [p,d]=[t.slice(0,2),t.slice(2)];let u=b64u.dec(d);if(p==='z.'){u=new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())}else if(p!=='j.')throw new Error('bad');return JSON.parse(new TextDecoder().decode(u))}
+
+/* ---------- Impact measurement (قياس الأثر) ---------- */
+const IMP_N=3;
+function impInds(x){const r=[];for(let i=1;i<=IMP_N;i++){const n=String(x['i'+i+'n']||'').trim();if(!n)continue;const num=v=>v===''||v==null||isNaN(+v)?null:+v;
+ const b=num(x['i'+i+'b']),t=num(x['i'+i+'t']),a=num(x['i'+i+'a']),low=x['i'+i+'d']==='الأقل أفضل';let p=null;
+ if(a!=null&&t!=null){if(b==null||b===t)p=(low?a<=t:a>=t)?100:Math.max(0,Math.round((low?t/Math.max(a,1e-9):a/Math.max(t,1e-9))*100));else p=Math.max(0,Math.round((low?(b-a)/(b-t):(a-b)/(t-b))*100))}
+ r.push({n,u:x['i'+i+'u']||'',b,t,a,low,p})}return r}
+function impScore(x){const m=impInds(x).filter(i=>i.p!=null);return m.length?Math.round(m.reduce((s,i)=>s+Math.min(100,i.p),0)/m.length):null}
+const impLevel=p=>p==null?'لم يُقس بعد':p>=85?'مرتفع':p>=60?'متوسط':'منخفض';
+const impCls=l=>l==='مرتفع'?'green':l==='متوسط'?'amber':l==='منخفض'?'red':'gray';
+function impOpps(x){const o=[];impInds(x).forEach(i=>{if(i.p==null)o.push(`استكمال قياس مؤشر «${i.n}» بعد التنفيذ وتسجيل القيمة المتحققة.`);else if(i.p<85)o.push(`مؤشر «${i.n}»: المتحقق ${i.a}${i.u?' '+i.u:''} مقابل المستهدف ${i.t}${i.u?' '+i.u:''} (نسبة التحقق ${i.p}%) — يُقترح مراجعة آليات التنفيذ وتكثيف الإجراءات الداعمة وإعادة القياس.`)});
+ if(!impInds(x).length)o.push('تحديد مؤشرات قياس (القيمة الأساسية والمستهدفة) قبل التنفيذ.');String(x.opp||'').split('\n').map(s=>s.trim()).filter(Boolean).forEach(s=>o.push(s));return o}
+const impLinkOpts=()=>['',...DB.guidance.map(x=>'التوجيه الطلابي: '+itemTitle('guidance',x)),...DB.pd.map(x=>'النمو المهني: '+itemTitle('pd',x)),...DB.exact.map(x=>'الاختبارات: '+itemTitle('exact',x)),...DB.activities.map(x=>'النشاط الطلابي: '+itemTitle('activities',x)),...DB.committees.map(c=>'اللجان: '+comName(c)),...DB.oplan.map(x=>'الخطة التشغيلية: '+itemTitle('oplan',x))].filter((v,i,a)=>a.indexOf(v)===i);
+const IMPF=[];for(let i=1;i<=IMP_N;i++)IMPF.push({k:'h'+i,l:'المؤشر '+i+(i===1?' (يُحدَّد قبل التنفيذ)':' (اختياري)'),type:'head'},{k:'i'+i+'n',l:'اسم المؤشر',full:1,req:i===1?1:0,ph:i===1?'مثال: نسبة الطلاب المتقنين لمهارات القراءة':''},{k:'i'+i+'u',l:'الوحدة',ph:'% / درجة / عدد'},{k:'i'+i+'d',l:'اتجاه التحسن',type:'select',opts:['الأعلى أفضل','الأقل أفضل'],def:'الأعلى أفضل'},{k:'i'+i+'b',l:'القيمة الأساسية (قبل)',type:'number',dec:1},{k:'i'+i+'t',l:'القيمة المستهدفة',type:'number',dec:1,req:i===1?1:0},{k:'i'+i+'a',l:'القيمة المتحققة (بعد)',type:'number',dec:1});
+Object.assign(S,{impact:{t:'قياس الأثر',one:'برنامج/مبادرة لقياس أثرها',f:[
+  {k:'title',l:'البرنامج/المبادرة/النشاط',req:1,full:1},{k:'kind',l:'النوع',type:'select',opts:['برنامج','مبادرة','نشاط','مشروع'],def:'برنامج'},
+  {k:'link',l:'مرتبط بـ (اختياري)',type:'select',optsFn:impLinkOpts},{k:'domain',l:'المجال',type:'select',opts:DOMAINS,def:'التعليم والتعلم'},{k:'owner',l:'المسؤول'},
+  {k:'start',l:'بداية التنفيذ',type:'date',def:'today'},{k:'end',l:'موعد القياس البعدي',type:'date'},{k:'target_grp',l:'الفئة المستهدفة'},
+  {k:'goal',l:'الأهداف',type:'textarea',full:1,req:1},...IMPF,
+  {k:'h9',l:'التوثيق والمتابعة',type:'head'},{k:'status',l:'الحالة',type:'select',opts:['مخطط (قبل التنفيذ)','قيد التنفيذ','تم القياس'],def:'مخطط (قبل التنفيذ)'},
+  {k:'opp',l:'فرص تحسين إضافية (سطر لكل فرصة)',type:'textarea',full:1},{k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['start','title','kind','domain','status','_ach','_lvl'],date:'start',
+  vl:{_ach:'نسبة تحقق المؤشرات',_lvl:'مستوى الأثر'},
+  vc:{_ach:(x,h)=>{const p=impScore(x);return p==null?'—':h?`<div class="bar" style="min-width:70px"><i style="width:${p}%"></i></div><span class="small">${p}%</span>`:p+'%'},_lvl:(x,h)=>{const l=impLevel(impScore(x));return h?`<span class="pill ${impCls(l)}">${l}</span>`:l}}}});
+function impHowto(){return `<details class="card howto" ${DB.impact.length?'':'open'}><summary><b>📘 تعليمات الاستخدام — قياس الأثر</b></summary><ol class="offl" style="list-style:decimal">
+ <li><b>أضف البرنامج:</b> اضغط «＋ إضافة» واكتب اسم البرنامج أو المبادرة أو النشاط ونوعه والمسؤول، ويمكنك ربطه بسجل قائم (برنامج توجيه، نمو مهني، إجراء اختبارات، لجنة…).</li>
+ <li><b>قبل التنفيذ:</b> حدِّد الأهداف ومؤشرات القياس (حتى ${IMP_N} مؤشرات) لكل مؤشر: القيمة الأساسية الحالية، والقيمة المستهدفة، واتجاه التحسن (الأعلى أفضل أو الأقل أفضل)، والحالة «مخطط».</li>
+ <li><b>بعد التنفيذ:</b> افتح «تعديل» وسجِّل القيمة المتحققة لكل مؤشر، وغيِّر الحالة إلى «تم القياس».</li>
+ <li><b>أرفق الشواهد:</b> زر 📎 في كل سجل (كشوف النتائج، الصور، التقارير)، وملفات القسم العامة في أعلى الصفحة.</li>
+ <li><b>اطّلع على المقارنة:</b> تُحسب نسبة التحقق آلياً لكل مؤشر = (المتحقق − الأساسي) ÷ (المستهدف − الأساسي)، ويُحدَّد مستوى الأثر: <span class="pill green">مرتفع</span> 85% فأكثر، <span class="pill amber">متوسط</span> 60–84%، <span class="pill red">منخفض</span> أقل من 60%.</li>
+ <li><b>اطبع التقرير:</b> زر «طباعة» في البطاقة أو «التقارير والتصدير ← قياس الأثر» لعرض مستوى الأثر وفرص التحسين المقترحة آلياً (مع إمكانية إضافة فرصك).</li></ol>
+ <div class="small" style="background:var(--bg);border-radius:10px;padding:10px;margin-top:6px"><b>مثال:</b> برنامج «القراءة المكثفة» للصف الثالث — المؤشر: نسبة الطلاب المتقنين للقراءة الجهرية — الأساسي 55% — المستهدف 80% — المتحقق بعد التنفيذ 75% ⇐ نسبة التحقق (75−55)÷(80−55) = 80% ⇐ أثر <b>متوسط</b>، وفرصة التحسين: تكثيف الحصص العلاجية للطلاب غير المتقنين وإعادة القياس.</div></details>`}
+function impCards(){if(!DB.impact.length)return'';return `<div class="comgrid">${DB.impact.map(x=>{const p=impScore(x),l=impLevel(p),ind=impInds(x);
+ return `<div class="comcard" style="border-top-color:var(--${impCls(l)==='green'?'ok':impCls(l)==='red'?'bad':impCls(l)==='amber'?'warn':'line'})"><div class="row"><b class="grow">📈 ${esc(x.title)}</b>${chip(l,impCls(l))}</div>
+ <div class="small muted">${esc(x.kind||'')}${x.link?' — '+esc(x.link):''}</div>
+ ${ind.map(i=>`<div class="small" style="margin-top:6px"><div class="row"><span class="grow">${esc(i.n)}</span><span class="muted">${i.b??'—'} ← ${i.a??'؟'} / ${i.t??'—'}${i.u?' '+esc(i.u):''}</span></div><div class="row"><div class="bar grow"><i style="width:${Math.min(100,i.p||0)}%"></i></div><b>${i.p==null?'—':i.p+'%'}</b></div></div>`).join('')}
+ <div class="row" style="margin-top:8px"><b class="grow">${p==null?'لم يُقس بعد':'نسبة التحقق '+p+'%'}</b>${evBtn('impact',x.id)}<button class="btn sm ghost" data-act="edit" data-c="impact" data-id="${x.id}">تعديل</button><button class="btn sm ghost" data-act="impprint" data-id="${x.id}">طباعة</button></div></div>`}).join('')}</div>`}
+function impPrintOne(x){const ind=impInds(x),p=impScore(x),l=impLevel(p);
+ return `<section><h3>${esc(x.title)} — مستوى الأثر: ${l}${p!=null?' ('+p+'%)':''}</h3><p class="small">${esc(x.kind||'')}${x.link?' — مرتبط بـ: '+esc(x.link):''}${x.owner?' — المسؤول: '+esc(x.owner):''}${x.start?' — البداية: '+fmtPlain(x.start):''}${x.end?' — القياس البعدي: '+fmtPlain(x.end):''}</p>
+ ${x.goal?`<p><b>الأهداف:</b> <span style="white-space:pre-line">${esc(x.goal)}</span></p>`:''}
+ <table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>المؤشر</th><th>الاتجاه</th><th>القيمة الأساسية</th><th>المستهدف</th><th>المتحقق</th><th>نسبة التحقق</th></tr>${ind.map(i=>`<tr><td>${esc(i.n)}${i.u?' ('+esc(i.u)+')':''}</td><td>${i.low?'الأقل أفضل':'الأعلى أفضل'}</td><td>${i.b??''}</td><td>${i.t??''}</td><td>${i.a??''}</td><td>${i.p==null?'—':i.p+'%'}</td></tr>`).join('')}</table>
+ <p><b>فرص التحسين (مقترحة آلياً — للمراجعة):</b></p><ul>${impOpps(x).map(o=>`<li>${esc(o)}</li>`).join('')}</ul>${evPrint('impact',x.id)?`<p><b>الشواهد:</b></p>${evPrint('impact',x.id)}`:''}</section>`}
+function impPrint(id){const rows=id?DB.impact.filter(x=>x.id===id):DB.impact;let h=printHead(id?'تقرير قياس أثر':'تقرير قياس الأثر',id?(rows[0]||{}).title||'':rows.length+' برنامج/مبادرة');
+ if(!id){const c={};rows.forEach(x=>{const l=impLevel(impScore(x));c[l]=(c[l]||0)+1});h+=`<section><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr>${['مرتفع','متوسط','منخفض','لم يُقس بعد'].map(l=>`<th>${l}</th>`).join('')}</tr><tr>${['مرتفع','متوسط','منخفض','لم يُقس بعد'].map(l=>`<td>${c[l]||0}</td>`).join('')}</tr></table></section>`}
+ return h+rows.map(impPrintOne).join('')+(id?'':secPrint('impact'))}
+
+/* ---------- Surveys (الاستبانات) ---------- */
+const SV_GROUPS=['الطلاب','أولياء الأمور','المعلمين','الإداريين','أخرى'];
+const LIK=['','غير موافق بشدة','غير موافق','محايد','موافق','موافق بشدة'];
+const QT={mc:'اختيار من متعدد',likert:'مقياس ليكرت (1–5)',yn:'نعم / لا',text:'نص حر'};
+Object.assign(S,{surveys:{t:'الاستبانات',one:'استبانة',f:[
+  {k:'title',l:'عنوان الاستبانة',req:1,full:1},{k:'group',l:'الفئة المستهدفة',type:'select',opts:SV_GROUPS,req:1},{k:'target',l:'عدد المستهدفين',type:'number',min:0,max:100000},
+  {k:'date',l:'تاريخ البدء',type:'date',def:'today',req:1},{k:'end',l:'تاريخ الإغلاق',type:'date'},{k:'phone',l:'رقم واتساب لاستقبال الردود (اختياري)',ph:'9665xxxxxxxx'},
+  {k:'status',l:'الحالة',type:'select',opts:['مسودة','منشورة','مغلقة'],def:'مسودة'},{k:'domain',l:'المجال',type:'select',opts:DOMAINS,def:'الإدارة المدرسية'},
+  {k:'intro',l:'مقدمة للمستجيبين',type:'textarea',full:1,ph:'مثال: نشكر مشاركتكم، ولا يُطلب ذكر الاسم.'}],
+  cols:['date','title','group','status','_n','_rate'],date:'date',vl:{_n:'عدد الردود',_rate:'نسبة الاستجابة'},
+  vc:{_n:x=>String((x.resp||[]).length),_rate:(x,h)=>{const r=svRate(x);return r==null?'—':h?`<div class="bar" style="min-width:70px"><i style="width:${Math.min(100,r)}%"></i></div><span class="small">${r}%</span>`:r+'%'}}}});
+const svRate=s=>+s.target>0?Math.round((s.resp||[]).length/(+s.target)*100):null;
+const svQs=s=>(s.q=Array.isArray(s.q)?s.q:[]);
+function svAnalyze(s){const R=s.resp||[],n=R.length,rate=svRate(s);const qs=svQs(s).map(q=>{const vals=R.map(r=>r.a&&r.a[q.id]).filter(v=>v!==undefined&&v!==null&&v!=='');const o={q,cnt:vals.length};
+  if(q.type==='likert'){const nums=vals.map(Number).filter(v=>v>=1&&v<=5);o.dist=[5,4,3,2,1].map(k=>[LIK[k],nums.filter(v=>v===k).length]);o.mean=nums.length?Math.round(nums.reduce((a,b)=>a+b,0)/nums.length*100)/100:null;o.agree=nums.length?Math.round(nums.filter(v=>v>=4).length/nums.length*100):null}
+  else if(q.type==='yn'){o.dist=[['نعم',vals.filter(v=>v==='نعم').length],['لا',vals.filter(v=>v==='لا').length]];o.yes=vals.length?Math.round(o.dist[0][1]/vals.length*100):null}
+  else if(q.type==='mc'){const m={};(q.o||[]).forEach(x=>m[x]=0);vals.forEach(v=>String(v).split(/\s*[;؛]\s*/).forEach(x=>{if(x)m[x]=(m[x]||0)+1}));o.dist=Object.entries(m).sort((a,b)=>b[1]-a[1])}
+  else o.texts=vals.map(String);return o});
+ const lk=qs.filter(o=>o.mean!=null),idx=lk.length?Math.round(lk.reduce((a,o)=>a+o.mean,0)/lk.length*100)/100:null;
+ const recs=[];if(!n)recs.push({k:'info',t:'لا توجد ردود بعد — شارك رابط الاستبانة ثم استورد الردود.'});
+ if(n&&n<5)recs.push({k:'info',t:`عدد الردود قليل (${n}) — تُعدّ النتائج استرشادية.`});
+ if(rate!=null&&n&&rate<50)recs.push({k:'imp',t:`نسبة الاستجابة ${rate}% أقل من 50% — يُقترح تذكير الفئة المستهدفة وتمديد مدة الاستبانة قبل تعميم النتائج.`,q:'رفع نسبة الاستجابة لاستبانة '+s.title});
+ qs.forEach(o=>{const t=o.q.t;if(o.mean!=null){if(o.mean<3)recs.push({k:'imp',t:`«${t}»: المتوسط ${o.mean} من 5 — مجال يحتاج إلى تحسين؛ يُقترح دراسة أسبابه ووضع إجراء في خطة التحسين.`,q:t});else if(o.mean<3.5)recs.push({k:'watch',t:`«${t}»: المتوسط ${o.mean} من 5 — يحتاج إلى متابعة.`,q:t});else if(o.mean>=4)recs.push({k:'str',t:`«${t}»: المتوسط ${o.mean} من 5 — نقطة قوة يُقترح تعزيزها.`})}
+  if(o.yes!=null&&o.cnt){if(o.yes<50)recs.push({k:'imp',t:`«${t}»: ${100-o.yes}% أجابوا «لا» — يُقترح معالجة هذا الجانب.`,q:t});else if(o.yes>=80)recs.push({k:'str',t:`«${t}»: ${o.yes}% أجابوا «نعم» — نقطة قوة.`})}
+  if(o.q.type==='mc'&&o.cnt&&o.dist.length){const [a,b]=o.dist[0];recs.push({k:'info',t:`«${t}»: الخيار الأكثر اختياراً «${a}» (${Math.round(b/o.cnt*100)}%).`})}});
+ return {n,rate,idx,qs,recs}}
+const RECK={imp:['🔻 مجال تحسين','red'],watch:['⚠️ متابعة','amber'],str:['✅ نقطة قوة','green'],info:['ℹ️ معلومة','gray']};
+function hbars(dist,tot){const mx=Math.max(1,...dist.map(d=>d[1]));return `<div class="hb">${dist.map(([l,v])=>`<div class="hbr"><span class="hbl">${esc(l)}</span><span class="hbt"><i style="width:${Math.round(v/mx*100)}%"></i></span><span class="hbv">${v}${tot?' ('+Math.round(v/tot*100)+'%)':''}</span></div>`).join('')}</div>`}
+function svAnalysisHTML(s,print){const A=svAnalyze(s);
+ let h=`<div class="chips" style="margin-bottom:8px">${chip('📨 '+A.n+' رد','blue')}${chip('🎯 نسبة الاستجابة: '+(A.rate==null?'— (حدِّد عدد المستهدفين)':A.rate+'%'),A.rate==null?'gray':A.rate>=50?'green':'amber')}${A.idx!=null?chip('📊 المؤشر العام (ليكرت): '+A.idx+' / 5',A.idx>=3.5?'green':A.idx>=3?'amber':'red'):''}</div>`;
+ h+=A.qs.map((o,i)=>`<div class="svq"><b>${i+1}. ${esc(o.q.t)}</b> <span class="small muted">(${QT[o.q.type]} — ${o.cnt} إجابة${o.mean!=null?' — المتوسط '+o.mean+' — الموافقة '+o.agree+'%':''})</span>
+  ${o.dist?hbars(o.dist,o.cnt):`<ul class="small">${(o.texts||[]).slice(0,print?100:30).map(t=>`<li>${esc(t)}</li>`).join('')||'<li class="muted">لا إجابات</li>'}</ul>`}</div>`).join('');
+ h+=`<h3>التوصيات المقترحة آلياً <span class="small muted">(اقتراحات تحتاج إلى مراجعة ${fem('قائد المدرسة')} قبل اعتمادها)</span></h3><ul class="recs">${A.recs.map((r,i)=>`<li><span class="pill ${RECK[r.k][1]}">${RECK[r.k][0]}</span> ${esc(r.t)}${!print&&r.k==='imp'?` <button class="btn sm ghost" data-act="sv2act" data-id="${s.id}" data-c="${i}">＋ خطة التحسين</button>`:''}</li>`).join('')}</ul>`;return h}
+function svHowto(){return `<details class="card howto" ${DB.surveys.length?'':'open'}><summary><b>📘 تعليمات الاستخدام — الاستبانات</b></summary><ol class="offl" style="list-style:decimal">
+ <li>أنشئ استبانة («＋ إضافة»)، ثم افتحها وأضف الأسئلة: اختيار من متعدد، ليكرت 1–5، نعم/لا، نص حر.</li>
+ <li>اضغط «إنشاء رابط الاستبانة» وأرسل الرابط عبر واتساب أو انسخه أو اعرض رمز QR. الأسئلة محفوظة داخل الرابط نفسه، ولا تُرفع بيانات المدرسة إلى أي خادم.</li>
+ <li>يفتح المستجيب الرابط ويجيب، ثم يضغط «إرسال الرد عبر واتساب» فيصلك رمز قصير يبدأ بـ SLDj.</li>
+ <li>انسخ رسائل الردود (أو صدّر محادثة واتساب كملف نصي) والصقها في «استيراد الردود» — تُستخرج الرموز آلياً ويُتجاهل المكرر.</li>
+ <li>بديل: إن جمعت الردود عبر Google Forms أو Microsoft Forms فصدّرها CSV/Excel واستوردها هنا للتحليل الآلي.</li>
+ <li>اطّلع على التحليل (التوزيعات، المتوسطات، نسبة الاستجابة) والتوصيات المقترحة، وأضف مجالات التحسين إلى خطة التحسين، واطبع التقرير.</li></ol></details>`}
+function svCards(){if(!DB.surveys.length)return'';return `<div class="comgrid">${DB.surveys.map(s=>{const A=svAnalyze(s);return `<a class="comcard" href="#survey?${s.id}"><div class="row"><b class="grow">📋 ${esc(s.title)}</b>${chip(esc(s.status||'مسودة'),s.status==='منشورة'?'green':s.status==='مغلقة'?'gray':'amber')}</div>
+ <div class="small muted">${esc(s.group||'')} — ${svQs(s).length} سؤال</div><div class="chips" style="margin-top:6px">${chip('📨 '+A.n+' رد','blue')}${A.idx!=null?chip('📊 '+A.idx+'/5','gray'):''}${A.recs.filter(r=>r.k==='imp').length?chip(A.recs.filter(r=>r.k==='imp').length+' مجال تحسين','red'):''}</div>
+ ${A.rate!=null?`<div class="row small" style="margin-top:6px"><span>الاستجابة</span><div class="bar grow"><i style="width:${Math.min(100,A.rate)}%"></i></div><b>${A.rate}%</b></div>`:''}</a>`}).join('')}</div>`}
+let svLink={};
+function surveyView(id){const s=DB.surveys.find(x=>x.id===id);if(!s)return '<div class="card empty">الاستبانة غير موجودة. <a href="#surveys">العودة</a></div>';const qs=svQs(s),nR=(s.resp||[]).length;
+ const qrow=(q,i)=>`<div class="svb" data-qi="${i}"><div class="row"><b>${i+1}.</b><select data-svq="${s.id}|${q.id}|type" aria-label="نوع السؤال">${Object.entries(QT).map(([k,l])=>`<option value="${k}" ${q.type===k?'selected':''}>${l}</option>`).join('')}</select>
+  <span class="grow"></span><button class="btn sm ghost" data-act="svmv" data-id="${s.id}" data-c="${q.id}|-1" aria-label="أعلى">▲</button><button class="btn sm ghost" data-act="svmv" data-id="${s.id}" data-c="${q.id}|1" aria-label="أسفل">▼</button><button class="btn sm ghost" data-act="svqdel" data-id="${s.id}" data-c="${q.id}" aria-label="حذف">🗑️</button></div>
+  <input data-svq="${s.id}|${q.id}|t" value="${esc(q.t||'')}" placeholder="نص السؤال" maxlength="300" style="width:100%;margin-top:6px">
+  ${q.type==='mc'?`<textarea data-svq="${s.id}|${q.id}|o" placeholder="الخيارات (سطر لكل خيار)" style="width:100%;margin-top:6px;min-height:70px">${esc((q.o||[]).join('\n'))}</textarea>`:q.type==='likert'?`<div class="small muted">${LIK.slice(1).reverse().join(' — ')}</div>`:q.type==='yn'?'<div class="small muted">نعم — لا</div>':'<div class="small muted">إجابة نصية قصيرة</div>'}</div>`;
+ return `<div class="head"><div><a href="#surveys" class="small">→ الاستبانات</a><h2>📋 ${esc(s.title)}</h2><div class="muted small">${esc(s.group||'')} — ${chip(esc(s.status||'مسودة'),'gray')} — ${qs.length} سؤال — ${nR} رد${s.target?' من '+s.target+' مستهدف':''}</div></div>
+ <div class="btns"><button class="btn gold" data-act="edit" data-c="surveys" data-id="${s.id}">تعديل البيانات</button>${evBtn('surveys',s.id)}<button class="btn ghost" data-act="svprint" data-id="${s.id}">طباعة التقرير</button></div></div>
+ <div class="card"><h3>① الأسئلة</h3>${nR?'<div class="small" style="color:var(--warn)">تنبيه: توجد ردود مستوردة؛ تعديل الأسئلة لا يغيّر الردود السابقة، والرابط القديم يبقى بأسئلته القديمة.</div>':''}
+  ${qs.map(qrow).join('')||'<div class="empty">لا توجد أسئلة بعد — أضف السؤال الأول</div>'}
+  <div class="btns" style="margin-top:8px">${Object.entries(QT).map(([k,l])=>`<button class="btn sm ghost" data-act="svqadd" data-id="${s.id}" data-c="${k}">＋ ${l}</button>`).join('')}</div></div>
+ <div class="card"><h3>② الإرسال</h3><p class="small muted">الأسئلة تُحفظ داخل الرابط نفسه، ولا تُرفع بيانات المدرسة إلى أي خادم. يصلك كل رد كرمز قصير عبر واتساب.</p>
+  <div class="btns"><button class="btn gold" data-act="svlink" data-id="${s.id}" ${qs.length?'':'disabled'}>🔗 إنشاء رابط الاستبانة</button></div>
+  <div id="svShare">${svLink[s.id]?svShareHTML(s,svLink[s.id]):''}</div></div>
+ <div class="card"><h3>③ استيراد الردود</h3>
+  <textarea id="svPaste" placeholder="الصق هنا رسالة رد أو أكثر (أو محادثة واتساب كاملة) — تُستخرج الرموز SLDj. آلياً" style="width:100%;min-height:90px"></textarea>
+  <div class="btns" style="margin-top:6px"><button class="btn gold" data-act="svpaste" data-id="${s.id}">استيراد الرموز الملصقة</button><button class="btn ghost" data-act="svfile" data-id="${s.id}">📂 ملف: محادثة واتساب (.txt) أو Google/Microsoft Forms (CSV/Excel)</button>${nR?`<button class="btn ghost red" data-act="svclear" data-id="${s.id}">حذف جميع الردود (${nR})</button>`:''}</div>
+  <details class="small" style="margin-top:8px"><summary>استخدام Google Forms أو Microsoft Forms بدلاً من الرابط</summary><ol style="list-style:decimal;padding-inline-start:22px;line-height:1.9">
+  <li>أنشئ النموذج بالأسئلة نفسها (يُفضّل نص السؤال مطابقاً). لأسئلة ليكرت استخدم خيارات: موافق بشدة، موافق، محايد، غير موافق، غير موافق بشدة (أو 1–5).</li>
+  <li>بعد جمع الردود: Google Forms ← الردود ← تنزيل CSV (أو ربط بجدول ثم تنزيل Excel). Microsoft Forms ← الردود ← فتح في Excel.</li>
+  <li>اضغط زر «📂 ملف» أعلاه واختر الملف. إن كانت الاستبانة بلا أسئلة تُنشأ الأسئلة آلياً من عناوين الأعمدة، وإلا تُطابق الأعمدة مع نصوص الأسئلة.</li></ol></details></div>
+ <div class="card"><h3>④ التحليل والتوصيات</h3>${svAnalysisHTML(s,false)}</div>`}
+function svShareHTML(s,url){const msg=`${s.title}\n${DB.settings.school||''}\nنأمل التكرم بتعبئة الاستبانة عبر الرابط:\n${url}`;let qr='';
+ try{if(window.qrcode&&url.length<=2300){const q=qrcode(0,url.length>1200?'L':'M');q.addData(url);q.make();qr=`<div class="svqr">${q.createSvgTag({cellSize:3,margin:2,scalable:true})}</div>`}else qr='<div class="small muted">الرابط طويل على رمز QR — استخدم مشاركة الرابط (قلّل الأسئلة أو اختصر نصوصها لإظهار الرمز).</div>'}catch(e){qr=''}
+ return `<div class="row" style="margin-top:8px"><input id="svUrl" readonly value="${esc(url)}" style="flex:1;min-width:0;direction:ltr"><button class="btn sm" data-act="svcopy">نسخ</button></div>
+ <div class="btns" style="margin-top:6px"><a class="btn gold" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">مشاركة عبر واتساب</a><a class="btn ghost" target="_blank" rel="noopener" href="${esc(url)}">معاينة كمستجيب</a></div>${qr}
+ <div class="small muted">طول الرابط ${url.length} حرفاً.</div>`}
+async function svBuildLink(s){const st=DB.settings;const p={v:1,i:s.id,t:s.title,s:st.school||'',g:isGirls()?1:0,gr:fem(s.group||''),n:s.intro||'',e:s.end||'',ph:String(s.phone||'').replace(/\D/g,''),q:svQs(s).filter(q=>q.t).map(q=>q.type==='mc'?[q.id,q.type,q.t,q.o||[]]:[q.id,q.type,q.t])};
+ return new URL('survey.html',location.href.split('#')[0]).href+'#'+await packJSON(p)}
+async function svImportCodes(text){const codes=[...new Set(String(text).match(/SLDj\.[jz]\.[A-Za-z0-9_-]{8,}/g)||[])];let add=0,dup=0,other=0,bad=0;
+ for(const c of codes){try{const o=await unpackJSON(c.slice(5));const s=DB.surveys.find(x=>x.id===o.i);if(!s){other++;continue}s.resp=s.resp||[];if(s.resp.some(r=>r.r===o.r)){dup++;continue}
+  s.resp.push({r:String(o.r),at:o.at||today(),a:o.a||{},src:'link'});add++}catch(e){bad++}}
+ if(add){audit('استيراد ردود استبانة','surveys',{title:add+' رد'});save()}return {codes:codes.length,add,dup,other,bad}}
+const LIKMAP={'موافق بشدة':5,'موافق':4,'محايد':3,'غير موافق':2,'غير موافق بشدة':1,'strongly agree':5,'agree':4,'neutral':3,'disagree':2,'strongly disagree':1,'أوافق بشدة':5,'أوافق':4,'لا أوافق':2,'لا أوافق بشدة':1};
+const ynNorm=v=>{v=String(v).trim().toLowerCase();return /^(نعم|yes|y|true|صح)$/.test(v)?'نعم':/^(لا|no|n|false|خطأ)$/.test(v)?'لا':null};
+const likNorm=v=>{const t=String(v).trim();if(/^[1-5]$/.test(t))return +t;const k=LIKMAP[t.toLowerCase()];return k||null};
+async function svImportForms(s,file){let rows;if(/\.(xlsx|xls|ods)$/i.test(file.name)){const X=await loadXLSX();const wb=X.read(await file.arrayBuffer(),{cellDates:true});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''})}else rows=parseCSV(await file.text());
+ rows=rows.filter(r=>r.some(c=>String(c).trim()));if(rows.length<2)throw new Error('الملف لا يحتوي على ردود');const H=rows[0].map(h=>String(h).trim()),data=rows.slice(1);
+ const META=/timestamp|الطابع الزمني|التوقيت|^id$|^المعرف|start time|completion time|وقت البدء|وقت الإكمال|email|البريد|^name$|^الاسم$|last modified/i;const nz=t=>String(t).replace(/[\s\u200f\u200e]+/g,' ').replace(/[؟?:.]+$/,'').trim();
+ const cols=[];let created=0;const qs=svQs(s);
+ H.forEach((h,ci)=>{if(!h||META.test(h))return;let q=qs.find(x=>nz(x.t)===nz(h))||qs.find(x=>nz(h).includes(nz(x.t))||nz(x.t).includes(nz(h)));
+  if(!q&&!qs.length||(!q&&s._autoQ)){const vals=data.map(r=>r[ci]).filter(v=>String(v).trim());let type='text';
+   if(vals.length&&vals.every(v=>likNorm(v)))type='likert';else if(vals.length&&vals.every(v=>ynNorm(v)))type='yn';else if(!/اقتراح|ملاحظ|رأي|رأيك|تعليق|اذكر|اكتب|comment|suggest|why|لماذا/i.test(h)&&vals.length&&vals.reduce((x,v)=>x+String(v).length,0)/vals.length<=25&&new Set(vals).size<=Math.max(8,Math.ceil(vals.length/3)))type='mc';
+   q={id:'q'+(s.qn=(s.qn||0)+1),type,t:h};if(type==='mc')q.o=[...new Set(vals.flatMap(v=>String(v).split(/\s*[;؛]\s*/)))].slice(0,20);s._autoQ=1;created++;s.q.push(q)}
+  if(q)cols.push([ci,q])});delete s._autoQ;
+ s.resp=s.resp||[];let add=0,dup=0;const tsi=H.findIndex(h=>/timestamp|الطابع الزمني|completion time|وقت الإكمال/i.test(h));
+ data.forEach(r=>{const key='f'+hashStr(r.join('|'));if(s.resp.some(x=>x.r===key)){dup++;return}const a={};
+  cols.forEach(([ci,q])=>{const v=r[ci];if(v==null||String(v).trim()==='')return;if(q.type==='likert'){const n=likNorm(v);if(n)a[q.id]=n}else if(q.type==='yn'){const y=ynNorm(v);if(y)a[q.id]=y}else a[q.id]=String(v).trim()});
+  s.resp.push({r:key,at:normDate(tsi>=0?r[tsi]:'')||today(),a,src:'forms'});add++});
+ audit('استيراد ردود Forms','surveys',{title:s.title+' — '+add+' رد'});save();return {add,dup,created,matched:cols.length,skipped:H.filter(Boolean).length-cols.length}}
+function hashStr(t){let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
+function svPrint(id){const ss=id?DB.surveys.filter(x=>x.id===id):DB.surveys;let h=printHead(id?'تقرير استبانة':'تقرير الاستبانات',id?(ss[0]||{}).title||'':ss.length+' استبانة');
+ if(!id)h+=`<section>${ptable('surveys',ss)}</section>`;
+ ss.forEach(s=>{h+=`<section><h2>${esc(s.title)}</h2><p class="small">الفئة: ${esc(s.group||'')} — الفترة: ${fmtPlain(s.date)}${s.end?' — '+fmtPlain(s.end):''} — الحالة: ${esc(s.status||'')}</p>${svAnalysisHTML(s,true)}</section>`;const ef=evPrint('surveys',s.id);if(ef)h+=`<section><h3>الشواهد</h3>${ef}</section>`});
+ return h+(id?'':secPrint('surveys'))}
+
 const DONE={tasks:'مكتملة',actions:'منجز',oplan:'منجز'};
-const lbl=(c,k)=>k==='rate'?'نسبة الحضور':(S[c].f.find(x=>x.k===k)||{}).l||k;
+const lbl=(c,k)=>k==='rate'?'نسبة الحضور':S[c].vl&&S[c].vl[k]?S[c].vl[k]:(S[c].f.find(x=>x.k===k)||{}).l||k;
 
 /* ---------- Ready-made templates (editable) ---------- */
 const T=(p,d,t)=>({period:p,domain:d,title:t});
@@ -263,7 +413,7 @@ function mergeCommittees(){const done=new Set(DB.comMerged||[]);let n=0;const no
 /* ---------- Derived ---------- */
 const isOver=(c,x)=>{const k=S[c].date;return (c==='tasks'||c==='actions'||c==='oplan')&&x[k]&&x[k]<today()&&x.status!==DONE[c]};
 const attRate=x=>{const e=+x.enrolled,a=+x.absent;return e>0?Math.round((e-a)/e*1000)/10:null};
-function cellVal(c,k,x,hl){if(k==='rate'){const r=attRate(x);return r==null?'—':r+'%'}
+function cellVal(c,k,x,hl){if(S[c].vc&&S[c].vc[k])return S[c].vc[k](x,true);if(k==='rate'){const r=attRate(x);return r==null?'—':r+'%'}
  const f=S[c].f.find(y=>y.k===k)||{};let v=x[k];
  if(f.type==='date')return fmtDate(v,DB.settings.hijri);
  if(k==='status'){const cls=/مكتملة|منجز|مغلقة|منفذ|سارية/.test(v)?'green':/متعثر|ملغى/.test(v)?'red':/قيد/.test(v)?'blue':'amber';return `<span class="pill ${cls}">${esc(v||'—')}</span>`}
@@ -275,17 +425,17 @@ function cellVal(c,k,x,hl){if(k==='rate'){const r=attRate(x);return r==null?'—
 function openForm(c,item,onSaved){const sc=S[c],isNew=!item;item=item||{};
  const f=$('#dlgForm');
  f.innerHTML=`<div class="dlg-h"><span>${isNew?'إضافة':'تعديل'} ${sc.one}</span><button type="button" class="iconbtn" data-x aria-label="إغلاق">✕</button></div><div class="dlg-b">`+
- sc.f.map(x=>{let v=item[x.k];if(v==null&&isNew){v=x.def==='today'?today():x.def??''}if(v==null)v='';const id='f_'+x.k;const req=x.req?' <span class="req">*</span>':'';
+ sc.f.map(x=>{if(x.type==='head')return `<div class="fld full fhead"><b>${esc(x.l)}</b></div>`;let v=item[x.k];if(v==null&&isNew){v=x.def==='today'?today():x.def??''}if(v==null)v='';const id='f_'+x.k;const req=x.req?' <span class="req">*</span>':'';
   let inp;const xo=x.optsFn?x.optsFn():x.opts;if(x.type==='select'&&x.optsFn)inp=`<select id="${id}" name="${x.k}">${xo.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o||'— بدون —')}</option>`).join('')}</select>`;else if(x.type==='select')inp=`<select id="${id}" name="${x.k}">${x.req&&!v?'<option value="">— اختر —</option>':''}${x.opts.map(o=>`<option ${fem(o)===fem(String(v))?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
   else if(x.type==='textarea')inp=`<textarea id="${id}" name="${x.k}" maxlength="5000">${esc(v)}</textarea>`;
-  else inp=`<input id="${id}" name="${x.k}" type="${x.type||'text'}" value="${esc(v)}" ${x.min!=null?`min="${x.min}"`:''} ${x.max!=null&&x.type==='number'?`max="${x.max}"`:''} maxlength="${x.max&&x.type!=='number'?x.max:300}" ${x.ph?`placeholder="${esc(x.ph)}"`:''} ${x.type==='number'?'inputmode="numeric" step="1"':''}>`;
+  else inp=`<input id="${id}" name="${x.k}" type="${x.type||'text'}" value="${esc(v)}" ${x.min!=null?`min="${x.min}"`:''} ${x.max!=null&&x.type==='number'?`max="${x.max}"`:''} maxlength="${x.max&&x.type!=='number'?x.max:300}" ${x.ph?`placeholder="${esc(x.ph)}"`:''} ${x.type==='number'?(x.dec?'inputmode="decimal" step="any"':'inputmode="numeric" step="1"'):''}>`;
   return `<div class="fld ${x.full?'full':''}"><label for="${id}">${esc(x.l)}${req}</label>${inp}<span class="err" id="e_${x.k}"></span></div>`}).join('')+
  `</div><div class="dlg-f"><button class="btn gold" value="ok" type="submit">حفظ (Ctrl+Enter)</button><button type="button" class="btn ghost" data-x>إلغاء</button>${!isNew?'<button type="button" class="btn red" data-del style="margin-inline-start:auto">حذف</button>':''}</div>`;
  f.innerHTML=fem(f.innerHTML);const dlg=$('#dlg');
  f.onsubmit=e=>{e.preventDefault();const data={};let ok=true;
-  sc.f.forEach(x=>{const el=f.elements[x.k];let v=el.value.trim();const fe=$('#e_'+x.k);let err='';
+  sc.f.forEach(x=>{if(x.type==='head')return;const el=f.elements[x.k];let v=el.value.trim();const fe=$('#e_'+x.k);let err='';
    if(x.req&&v==='')err='هذا الحقل مطلوب';
-   else if(x.type==='number'&&v!==''){const n=Number(v);if(!Number.isFinite(n)||!Number.isInteger(n))err='أدخل رقماً صحيحاً';else if(x.min!=null&&n<x.min)err='الحد الأدنى '+x.min;else if(x.max!=null&&n>x.max)err='الحد الأعلى '+x.max;else v=n}
+   else if(x.type==='number'&&v!==''){const n=Number(v);if(!Number.isFinite(n)||(!x.dec&&!Number.isInteger(n)))err=x.dec?'أدخل رقماً':'أدخل رقماً صحيحاً';else if(x.min!=null&&n<x.min)err='الحد الأدنى '+x.min;else if(x.max!=null&&n>x.max)err='الحد الأعلى '+x.max;else v=n}
    else if(x.type==='date'&&v!==''&&isNaN(parseD(v)))err='تاريخ غير صالح';
    fe.textContent=err;el.closest('.fld').classList.toggle('bad',!!err);if(err)ok=false;data[x.k]=v});
   if(c==='attendance'&&ok){if(data.absent>data.enrolled){ok=false;$('#e_absent').textContent='الغائبون أكثر من المقيدين'}if((+data.excused||0)>data.absent){ok=false;$('#e_excused').textContent='أكبر من عدد الغائبين'}}
@@ -367,6 +517,8 @@ function chartsBlock(){const t=today();
   ['تواصل أولياء الأمور المغلق',ratio(DB.parents,x=>x.status==='مغلقة'),DB.parents.length+' تواصل','#parents'],
   ['إنجاز مهام اللجان',(()=>{const a=DB.committees.map(comPct).filter(Boolean);const T=a.reduce((s,x)=>s+x.total,0);return T?Math.round(a.reduce((s,x)=>s+x.done,0)/T*100):null})(),DB.committees.filter(c=>comPct(c)).length+' لجنة بمهام','#committees'],
   ['اللجان الفاعلة (اجتماع خلال 60 يوماً)',ratio(DB.committees.filter(x=>x.status!=='منتهية'),c=>comMeetings(c).some(m=>m.date>=addDays(t,-60))),DB.committees.filter(x=>x.status!=='منتهية').length+' لجنة سارية','#committees'],
+  ['قياس الأثر: برامج أثرها مرتفع',ratio(DB.impact.filter(x=>impScore(x)!=null),x=>impScore(x)>=85),DB.impact.filter(x=>impScore(x)!=null).length+' برنامج مُقاس من '+DB.impact.length,'#impact'],
+  ['متوسط الاستجابة للاستبانات',(()=>{const a=DB.surveys.map(svRate).filter(v=>v!=null);return a.length?Math.min(100,Math.round(a.reduce((x,y)=>x+y,0)/a.length)):null})(),DB.surveys.length+' استبانة — '+DB.surveys.reduce((a,s)=>a+(s.resp||[]).length,0)+' رد','#surveys'],
   ['إجراءات الاختبارات المنفذة',ratio(DB.exact.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.exact.length+' إجراء — '+DB.exmeet.length+' اجتماع','#exams'],
   ['خطة النمو المهني',ratio(DB.pdplan.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.pdplan.length+' برنامج','#pdplan'],
   ['برامج النمو المهني المنفذة',ratio(DB.pd.filter(x=>x.status!=='ملغى'),x=>x.status==='منفذ'),DB.pd.reduce((a,x)=>a+(x.status==='منفذ'?+x.hours||0:0),0)+' ساعة','#pd'],
@@ -418,6 +570,8 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  ${K('تنفيذ خطة التوجيه',st.gPlan==null?'—':st.gPlan+'%',DB.gplan.length+' برنامج مخطط','gold')}
  ${K('ساعات النمو المهني المنفذة',st.pdHours,st.pdCount+' برنامج — '+st.pdBen+' مستفيد','green')}
  ${K('تنفيذ خطة النمو المهني',st.pdPlan==null?'—':st.pdPlan+'%',DB.pdplan.length+' برنامج مخطط','gold')}
+ ${K('متوسط تحقق مؤشرات الأثر',(()=>{const a=DB.impact.map(impScore).filter(v=>v!=null);return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length)+'%':'—'})(),DB.impact.length+' برنامج/مبادرة','green')}
+ ${K('ردود الاستبانات',DB.surveys.reduce((a,s)=>a+(s.resp||[]).length,0),DB.surveys.length+' استبانة','blue')}
  ${K('الاختبارات',DB.exmeet.length+' اجتماع',DB.exact.filter(x=>x.status==='منفذ').length+' إجراء منفذ — '+DB.exres.length+' نتيجة','gold')}
  ${K('الشواهد المرفوعة',st.ev,'<a href="#evidence">معرض الشواهد</a>')}
  </div>
@@ -497,10 +651,11 @@ function searchView(q){const ql=q.toLowerCase();let out='',n=0;
 /* ---------- Render ---------- */
 let searchQ='';
 function render(){const v=view(),m=$('#main');
- $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v||(v==='committee'&&a.dataset.v==='committees')||(['exam','exmeet','exact','exres'].includes(v)&&a.dataset.v==='exams')));
+ $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v||(v==='committee'&&a.dataset.v==='committees')||(['exam','exmeet','exact','exres'].includes(v)&&a.dataset.v==='exams')||(v==='survey'&&a.dataset.v==='surveys')));
  if(searchQ)m.innerHTML=searchView(searchQ);
  else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v]&&v!=='oplan')m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
- else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='oplan')m.innerHTML=oplanView();else if(v==='exams')m.innerHTML=examsView();else if(v==='exam')m.innerHTML=examView((location.hash.split('?')[1]||''));else if(v==='committee')m.innerHTML=committeeView((location.hash.split('?')[1]||''));else if(v==='settings')m.innerHTML=settingsView();else if(v==='evidence')m.innerHTML=evidenceView();else m.innerHTML=dashboard();
+ else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='oplan')m.innerHTML=oplanView();else if(v==='exams')m.innerHTML=examsView();else if(v==='survey')m.innerHTML=surveyView((location.hash.split('?')[1]||''));else if(v==='exam')m.innerHTML=examView((location.hash.split('?')[1]||''));else if(v==='committee')m.innerHTML=committeeView((location.hash.split('?')[1]||''));else if(v==='settings')m.innerHTML=settingsView();else if(v==='evidence')m.innerHTML=evidenceView();else m.innerHTML=dashboard();
+ if(!searchQ&&(v==='impact'||v==='surveys')){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=(v==='impact'?impHowto()+impCards():svHowto()+svCards());[...w.children].reverse().forEach(ch=>hd.after(ch))}
  if(!searchQ&&v==='committees'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=comCards();if(w.firstElementChild)hd.after(w.firstElementChild)}
  if(!searchQ&&SEC_VIEWS.includes(v)&&v!=='oplan'&&v!=='exams'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=secCard(v);hd?hd.after(w.firstElementChild):m.prepend(w.firstElementChild)}
  m.innerHTML=fem(m.innerHTML);chrome()}
@@ -534,15 +689,15 @@ function checkReminders(){const now=new Date(),t=today(),hm=pad(now.getHours())+
 
 /* ---------- Export ---------- */
 function rowsFor(c,from,to){const k=S[c].date;return DB[c].filter(x=>(!from||(x[k]||'')>=from)&&(!to||(x[k]||'')<=to))}
-function plainVal(c,k,x){if(k==='rate'){const r=attRate(x);return r==null?'':r+'%'}const f=S[c].f.find(y=>y.k===k)||{};return f.type==='date'?fmtPlain(x[k]):(x[k]??'')}
+function plainVal(c,k,x){if(S[c].vc&&S[c].vc[k])return S[c].vc[k](x,false);if(k==='rate'){const r=attRate(x);return r==null?'':r+'%'}const f=S[c].f.find(y=>y.k===k)||{};return f.type==='date'?fmtPlain(x[k]):(x[k]??'')}
 function download(name,content,type){const b=content instanceof Blob?content:new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 const csvCell=v=>{v=String(v??'');if(/^[=+\-@]/.test(v))v="'"+v;return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-function csv(c,rows){const keys=[...S[c].f.map(f=>f.k),...(c==='attendance'?['rate']:[])];
+function csv(c,rows){const keys=[...S[c].f.filter(f=>f.type!=='head').map(f=>f.k),...(c==='attendance'?['rate']:[])];
  const out=[keys.map(k=>lbl(c,k)).concat(['بيانات تجريبية'])].concat(rows.map(x=>keys.map(k=>plainVal(c,k,x)).concat([x.sample?'نعم':''])));
  download(`${S[c].t}-${today()}.csv`,'\ufeff'+out.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8')}
 const xe=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
 function xls(cols){let x='<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0F2747" ss:Pattern="Solid"/></Style></Styles>';
- cols.forEach(c=>{const keys=[...S[c].f.map(f=>f.k),...(c==='attendance'?['rate']:[])];
+ cols.forEach(c=>{const keys=[...S[c].f.filter(f=>f.type!=='head').map(f=>f.k),...(c==='attendance'?['rate']:[])];
   x+=`<Worksheet ss:Name="${xe(S[c].t.slice(0,31))}" ss:RightToLeft="1"><Table><Row>${keys.map(k=>`<Cell ss:StyleID="h"><Data ss:Type="String">${xe(lbl(c,k))}</Data></Cell>`).join('')}</Row>`+
   DB[c].map(r=>'<Row>'+keys.map(k=>{const v=plainVal(c,k,r);const num=typeof r[k]==='number';return `<Cell><Data ss:Type="${num?'Number':'String'}">${xe(v)}</Data></Cell>`}).join('')+'</Row>').join('')+'</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><DisplayRightToLeft/></WorksheetOptions></Worksheet>'});
  download(`لوحة-قيادة-المدرسة-${today()}.xls`,x+'</Workbook>','application/vnd.ms-excel')}
@@ -568,6 +723,8 @@ function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${fr
  else if(type==='oplan'){const pf=planFiles()[0];h=printHead(S.oplan.t,(pf?'ملف الخطة المعتمد: '+esc(pf.name)+(pf.meta&&pf.meta.year?' — العام '+esc(pf.meta.year):'')+' — ':'')+'نسبة الإنجاز العامة: '+(stats().opPct??'—')+'%');DOMAINS.forEach(d=>{const r=rowsFor('oplan',from,to).filter(x=>x.domain===d);h+=`<section><h3>${d} (${r.length})</h3>${ptable('oplan',r)}</section>`})}
  else if(type==='tasks'){const r=rowsFor('tasks',from,to);h=printHead(S.tasks.t,(range?range+' — ':'')+'الإنجاز: '+r.filter(x=>x.status==='مكتملة').length+' من '+r.length);PERIODS.forEach(p=>{const a=r.filter(x=>x.period===p).sort((x,y)=>(DOMAINS.indexOf(x.domain)-DOMAINS.indexOf(y.domain))||String(x.due).localeCompare(String(y.due)));if(a.length)h+=`<section><h3>${PICON[p]} المهام — ${p} (${a.filter(x=>x.status==='مكتملة').length}/${a.length})</h3>${ptable('tasks',a)}</section>`})}
  else if(type==='examsall'){h=examPrint('')}
+ else if(type==='impact'){h=impPrint('')}
+ else if(type==='surveys'){h=svPrint('')}
  else if(type==='committees'){h=printHead(S.committees.t,range);h+=`<section>${ptable('committees',rowsFor('committees',from,to))}</section>`;h+=`<section><h3>ملخص الاجتماعات</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>اللجنة</th><th>الرئيس</th><th>عدد الاجتماعات</th><th>آخر اجتماع</th><th>الملفات</th></tr>${DB.committees.map(c=>{const ms=comMeetings(c);return `<tr><td>${esc(comName(c))}</td><td>${esc(c.head||'')}</td><td>${ms.length}</td><td>${ms[0]?fmtPlain(ms[0].date):''}</td><td>${comFiles(c)}</td></tr>`}).join('')}</table></section>`}
  else if(S[type]){let r=rowsFor(type,from,to);h=printHead(S[type].t,range)+`<section>${ptable(type,r)}</section>`}
  const pv=type==='summary'||type==='weekly'?'reports':type;h+=secPrint(pv);
@@ -679,6 +836,7 @@ async function restoreFiles(arr){if(!idb)return 0;await idbReq(tx('readwrite').c
 /* ---------- Operational plan ---------- */
 const planFiles=()=>FILES.filter(f=>f.col==='opfile').sort((a,b)=>b.added.localeCompare(a.added));
 function oplanView(){return secCard('oplan')+`<div class="card"><div class="row" style="flex-wrap:wrap"><b class="grow">استيراد بنود الخطة</b><button class="btn ghost" data-act="optpl">نموذج استيراد CSV</button><button class="btn ghost" data-act="opimp">استيراد بنود من Excel/CSV</button></div></div>`+listView('oplan')}
+function printHTML(h){$('#printArea').innerHTML=fem(h)+sig();const imgs=$$('#printArea img');Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r}))).then(()=>setTimeout(()=>window.print(),50))}
 /* ---------- Exams ---------- */
 const exRows=(c,k)=>DB[c].filter(x=>exKey(x.area)===k).sort((a,b)=>String(b.date||b.year||'').localeCompare(String(a.date||a.year||'')));
 const exFiles=k=>FILES.filter(f=>f.col==='exm:'+k||(['exmeet','exact','exres'].includes(f.col)&&DB[f.col].some(x=>x.id===f.rid&&exKey(x.area)===k))).length;
@@ -791,6 +949,19 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   secdel:async()=>{e.preventDefault();if(!confirm('حذف هذا الإصدار من الملف؟'))return;await delFile(id);render()},opimp:()=>$('#opImpIn').click(),
   optpl:()=>download('نموذج-استيراد-الخطة-التشغيلية.csv','\ufeff'+[['المجال','الهدف','البرنامج/المبادرة','الإجراءات','المسؤول','تاريخ البداية','تاريخ النهاية','مؤشر الأداء','المستهدف','الحالة','نسبة الإنجاز']].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n','text/csv'),
   opdel:async()=>{if(!confirm('حذف هذا الإصدار من ملف الخطة؟'))return;await delFile(id);render()},
+  impprint:()=>printHTML(impPrint(id)),svprint:()=>printHTML(svPrint(id)),
+  svqadd:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;svQs(sv).push({id:'q'+(sv.qn=(sv.qn||0)+1),type:c,t:'',o:c==='mc'?['الخيار الأول','الخيار الثاني']:undefined});delete svLink[id];save();render();const ins=$$('[data-svq$="|t"]');ins.length&&ins[ins.length-1].focus()},
+  svqdel:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv||!confirm('حذف السؤال؟'))return;sv.q=svQs(sv).filter(q=>q.id!==c);delete svLink[id];save();render()},
+  svmv:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;const [qid,d]=c.split('|');const a=svQs(sv),i=a.findIndex(q=>q.id===qid),j=i+(+d);if(i<0||j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];delete svLink[id];save();render()},
+  svlink:async()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;if(!svQs(sv).some(q=>q.t)){toast('أضف نص سؤال واحد على الأقل');return}if(svQs(sv).some(q=>q.type==='mc'&&!(q.o||[]).length)){toast('أضف خيارات لأسئلة الاختيار من متعدد');return}
+   svLink[id]=await svBuildLink(sv);if(sv.status==='مسودة'){sv.status='منشورة';save()}render();toast('تم إنشاء الرابط')},
+  svcopy:()=>{const i=$('#svUrl');if(!i)return;(navigator.clipboard?navigator.clipboard.writeText(i.value):Promise.reject()).then(()=>toast('تم نسخ الرابط'),()=>{i.select();document.execCommand('copy');toast('تم النسخ')})},
+  svpaste:async()=>{const t=$('#svPaste').value;if(!t.trim()){toast('الصق الردود أولاً');return}const r=await svImportCodes(t);render();toast(`رموز: ${r.codes} — أُضيف ${r.add}${r.dup?' — مكرر '+r.dup:''}${r.other?' — لاستبانة أخرى/محذوفة '+r.other:''}${r.bad?' — تالف '+r.bad:''}`)},
+  svfile:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;const fi=document.createElement('input');fi.type='file';fi.accept='.txt,.csv,.xlsx,.xls';fi.id='svFileIn';fi.hidden=true;document.body.append(fi);
+   fi.onchange=async()=>{const f=fi.files[0];fi.remove();if(!f)return;try{if(/\.txt$/i.test(f.name)){const r=await svImportCodes(await f.text());render();toast(`من المحادثة: ${r.codes} رمز — أُضيف ${r.add}${r.dup?' — مكرر '+r.dup:''}`)}
+    else{const r=await svImportForms(sv,f);render();toast(`أُضيف ${r.add} رد${r.dup?' — مكرر '+r.dup:''} — أعمدة مطابقة ${r.matched}${r.created?' — أسئلة أُنشئت '+r.created:''}${r.skipped?' — أعمدة متجاهلة '+r.skipped:''}`)}}catch(e){toast('تعذّر الاستيراد: '+(e.message||e))}};fi.click()},
+  svclear:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv||!confirm('حذف جميع ردود هذه الاستبانة؟'))return;sv.resp=[];audit('حذف ردود استبانة','surveys',{title:sv.title});save();render()},
+  sv2act:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;const r=svAnalyze(sv).recs[+c];if(!r)return;DB.actions.push({id:uid(),action:'معالجة نتيجة الاستبانة: '+(r.q||r.t).slice(0,200),domain:sv.domain||'الإدارة المدرسية',owner:'',deadline:addDays(today(),30),status:'لم يبدأ',progress:0,indicator:'تحسّن نتيجة البند في الاستبانة القادمة',evidence:'استبانة: '+sv.title,created:new Date().toISOString()});audit('إضافة إجراء من استبانة','actions',{title:sv.title});save();toast('أُضيف إلى إجراءات خطة التحسين')},
   exadd:()=>{const a=exArea(id);openForm(c,null);const f=$('#dlgForm');if(a&&f.elements.area)f.elements.area.value=a[1]},
   exprint:()=>{$('#printArea').innerHTML=fem(examPrint(id))+sig();const imgs=$$('#printArea img');Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r}))).then(()=>setTimeout(()=>window.print(),50))},
   comoff:()=>{const cm=DB.committees.find(x=>x.id===id);cm&&editOfficial(cm)},
@@ -821,12 +992,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   chime:()=>{const m=DB.settings.mute;DB.settings.mute=false;chime();DB.settings.mute=m},bellclose:()=>$('#bellPanel').hidden=true,
   install:async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;chrome()}};
  acts[a]&&acts[a]()});
-document.addEventListener('input',e=>{const el=e.target;
+document.addEventListener('input',e=>{const el=e.target;if(el.dataset&&el.dataset.svq){const [sid,qid,k]=el.dataset.svq.split('|');const sv=DB.surveys.find(x=>x.id===sid);const q=sv&&svQs(sv).find(x=>x.id===qid);if(q&&k!=='type'){if(k==='o')q.o=el.value.split('\n').map(x=>x.trim()).filter(Boolean);else q.t=el.value.slice(0,300);delete svLink[sid];const sh=$('#svShare');if(sh)sh.innerHTML='';save()}return}
  if(el.dataset.f){const c=view();flt[c][el.dataset.f]=el.value;clearTimeout(el._t);el._t=setTimeout(()=>{const pos=el.selectionStart;render();const n=$(`[data-f="${el.dataset.f}"]`);if(n){n.focus();if(n.type==='search'&&pos!=null)n.setSelectionRange(pos,pos)}},el.type==='search'?250:0)}
  if(el.dataset.evf){flt.evidence[el.dataset.evf]=el.value;clearTimeout(el._t);el._t=setTimeout(()=>{render();const n=$(`[data-evf="${el.dataset.evf}"]`);n&&n.focus()},el.type==='search'?250:0)}
  if(el.dataset.tt){const t=DB.templates.find(x=>x.id===el.dataset.tt);if(t&&el.value.trim()){t.title=el.value.slice(0,200);save()}}
  if(el.dataset.rvn){const[d,i]=el.dataset.rvn.split('|');DB.review[d]=DB.review[d]||{};DB.review[d][i]={...(DB.review[d][i]||{}),n:el.value};DB.review._date=today();save()}});
-document.addEventListener('change',e=>{const el=e.target;if(el.dataset.ctask){const[cid,tid]=el.dataset.ctask.split('|');const cm=DB.committees.find(x=>x.id===cid);if(cm){cm.tdone=cm.tdone||{};if(el.checked)cm.tdone[tid]=today();else delete cm.tdone[tid];audit(el.checked?'إنجاز مهمة لجنة':'إلغاء إنجاز مهمة لجنة','committees',{title:comName(cm)});save();const y=scrollY;render();scrollTo(0,y)}return}if(el.dataset.allp)$$(`[data-p="${el.dataset.allp}"]`).forEach(x=>x.checked=el.checked);
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.svq&&el.dataset.svq.endsWith('|type')){const [sid,qid]=el.dataset.svq.split('|');const sv=DB.surveys.find(x=>x.id===sid);const q=sv&&svQs(sv).find(x=>x.id===qid);if(q){q.type=el.value;if(q.type==='mc'&&!(q.o||[]).length)q.o=['الخيار الأول','الخيار الثاني'];delete svLink[sid];save();render()}return}if(el.dataset.ctask){const[cid,tid]=el.dataset.ctask.split('|');const cm=DB.committees.find(x=>x.id===cid);if(cm){cm.tdone=cm.tdone||{};if(el.checked)cm.tdone[tid]=today();else delete cm.tdone[tid];audit(el.checked?'إنجاز مهمة لجنة':'إلغاء إنجاز مهمة لجنة','committees',{title:comName(cm)});save();const y=scrollY;render();scrollTo(0,y)}return}if(el.dataset.allp)$$(`[data-p="${el.dataset.allp}"]`).forEach(x=>x.checked=el.checked);
  if(el.id==='s_rt'){DB.settings.remindTime=el.value||'07:30';save()}if(el.id==='s_mute'){DB.settings.mute=el.checked;save()}if(el.id==='s_hj'){DB.settings.hijri=el.checked;save();chrome()}});
 document.addEventListener('click',e=>{const s=e.target.closest('[data-rv]');if(!s)return;const[d,i]=s.dataset.rv.split('|');DB.review[d]=DB.review[d]||{};const cur=DB.review[d][i]||{};
  DB.review[d][i]={...cur,s:cur.s===s.dataset.s?'':s.dataset.s};DB.review._date=today();audit('تقييم مؤشر','review',{title:d});save();
