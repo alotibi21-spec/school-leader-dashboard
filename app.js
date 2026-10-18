@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.13.0';
+const APP_VERSION='1.13.1';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -589,7 +589,7 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  ${empty?`<div class="card"><h3>مرحباً بك 👋</h3><p class="muted">لا توجد بيانات بعد. ابدأ من <a href="#settings">الإعدادات</a> بإدخال اسم المدرسة والشعار، ثم أضف المهام من <a href="#templates">القوالب الجاهزة</a> وسجّل الحضور والزيارات. بياناتك محفوظة على هذا الجهاز فقط — صدّر نسخة احتياطية دورياً. يمكنك أيضاً تحميل <b>بيانات تجريبية</b> معلَّمة للتعرّف على اللوحة ثم حذفها.</p><button class="btn ghost" data-act="sample">تحميل بيانات تجريبية</button></div>`:''}
  <div class="grid kpis">
  ${K('نسبة حضور الطلاب (30 يوماً)',st.attRate==null?'—':st.attRate+'%',st.attRate==null?'لم يُسجَّل حضور':'من '+st.attDays+' يوم مسجّل','green')}
- ${K('غياب اليوم',st.todAbs==null?'—':st.todAbs,st.todRate==null?'لم يُسجَّل حضور اليوم':'نسبة الحضور '+st.todRate+'%')}
+ ${K('غياب اليوم',st.todAbs==null?'—':st.todAbs,st.todRate==null?'لم يُسجَّل غياب اليوم':'نسبة الحضور '+st.todRate+'%')}
  ${K('إنجاز المهام',st.taskPct==null?'—':st.taskPct+'%',st.tasks?st.done+' من '+st.tasks+' مهمة':'لا توجد مهام','gold')}
  ${K('مهام متأخرة',st.over,st.dueToday+' مستحقة اليوم',st.over?'red':'')}
  ${K('السلوك والحوادث (هذا الشهر)',st.incM,st.incOpen+' حالة مفتوحة',st.incOpen?'red':'')}
