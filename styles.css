@@ -135,8 +135,8 @@ dialog::backdrop{background:#0f274799}
 .ev-nm{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .ticker{position:relative;height:32px;overflow:hidden;background:#fff5f5;border-bottom:1px solid #fecaca}
-.ticker .tk-run{position:absolute;top:0;left:100%;line-height:32px;white-space:nowrap;color:#c00;font-weight:800;font-size:.95rem;animation:tk 30s linear infinite;will-change:transform}
-@keyframes tk{from{transform:translateX(0)}to{transform:translateX(calc(-100vw - 100%))}}
+.ticker .tk-run{position:absolute;top:0;right:100%;line-height:32px;white-space:nowrap;color:#c00;font-weight:800;font-size:.95rem;animation:tk 30s linear infinite;will-change:transform}
+@keyframes tk{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 100%))}}
 .ticker:hover .tk-run,.ticker.paused .tk-run,.ticker:focus-within .tk-run{animation-play-state:paused}
 [data-theme=dark] .ticker{background:#2a1215;border-color:#5c1d24}[data-theme=dark] .ticker .tk-run,[data-theme=dark] .tk-link{color:#ff6b6b}
 @media (max-width:820px){.ticker .tk-run{font-size:.9rem}}
