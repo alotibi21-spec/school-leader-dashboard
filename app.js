@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.12.0';
+const APP_VERSION='1.12.1';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1084,3 +1084,17 @@ setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
 (function(){try{const f=$('#dlgForm');if(f)new MutationObserver(()=>voiceWire(f)).observe(f,{childList:true});const d=$('#dlg');if(d)d.addEventListener('close',voiceStop);
  if(SR)voiceWire($('.search'));addEventListener('hashchange',voiceStop);
  const m=$('#main');if(m)new MutationObserver(()=>{if(view()==='survey')voiceWire(m.querySelector('.card'));if(view()==='tasks'&&!searchQ){const hb=m.querySelector('.head .btns');if(hb&&!hb.querySelector('[data-act=vtask]')){const b=document.createElement('button');b.className='btn ghost';b.dataset.act='vtask';b.textContent='🎤 مهمة بالصوت';if(!SR){b.disabled=true;b.title='غير مدعوم في هذا المتصفح'}hb.prepend(b)}}}).observe(m,{childList:true})}catch(e){}})();
+
+/* ---------- Ticker (data-driven): {t:text, url?:link, until?:'YYYY-MM-DD' last day shown, Asia/Riyadh} ---------- */
+const TICKER=[
+ {t:'⏰ تثبيت الغياب يوميًا قبل الساعة ٨ ص'},
+ {t:'رابط حصر الوعي الفكري مطلوب الانتهاء منه اليوم الأحد ٧-٥-١٤٤٨هـ',url:'https://forms.cloud.microsoft/r/ezaF8WGK4e?origin=lprLink',until:'2026-10-18'}
+];
+const riyadhDay=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return today()}};
+function renderTicker(){const el=$('#ticker');if(!el)return;const d=riyadhDay();const items=TICKER.filter(x=>!x.until||d<=x.until);
+ const html=items.map(x=>x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer" class="tk-link">🔗 ${esc(x.t)} — <u>اضغط هنا</u></a>`:`<span class="tk-item">${esc(x.t)}</span>`).join('<span class="tk-sep" aria-hidden="true">✦</span>');
+ el.setAttribute('aria-label','تنبيهات: '+items.map(x=>x.t).join('، '));el.innerHTML=`<span class="tk-run">${html}</span>`;
+ const run=el.firstElementChild;requestAnimationFrame(()=>{const w=run.scrollWidth+el.clientWidth,sp=innerWidth<820?55:80;run.style.animationDuration=Math.max(10,Math.round(w/sp))+'s'})}
+(function(){try{renderTicker();const el=$('#ticker');let t;const pause=()=>{el.classList.add('paused');clearTimeout(t);t=setTimeout(()=>el.classList.remove('paused'),5000)};
+ el.addEventListener('pointerdown',pause);el.addEventListener('touchstart',pause,{passive:true});el.addEventListener('focusin',()=>el.classList.add('paused'));el.addEventListener('focusout',()=>el.classList.remove('paused'));
+ let lastDay=riyadhDay();setInterval(()=>{const d=riyadhDay();if(d!==lastDay){lastDay=d;renderTicker()}},60000);let rw=innerWidth;addEventListener('resize',()=>{if(Math.abs(innerWidth-rw)>40){rw=innerWidth;renderTicker()}})}catch(e){}})();
