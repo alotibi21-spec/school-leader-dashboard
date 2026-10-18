@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.13.1';
+const APP_VERSION='1.13.2';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1126,6 +1126,7 @@ setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
 const TICKER=[
  {t:'⏰ تثبيت الغياب يوميًا قبل الساعة ٨ ص'},
  {qiyam:1,day21:1},
+ {t:'📝 رابط تقرير تنفيذ برنامجي تعزيز السلوك الإيجابي «قيمة الانتماء للوطن» وتعزيز الهوية الوطنية — آخر موعد يوم الخميس ١١-٥-١٤٤٨هـ',url:'https://forms.cloud.microsoft/pages/responsepage.aspx?id=UYPKa9MBUkKF6r2o-NI1vTa68RRDvD1MvENeG7mh5SZUQVdQOVBVUFNLRzVTTUdWNzQxMk1COUo2VC4u&origin=QRCode&qrcodeorigin=presentation&route=shorturl',until:'2026-10-22'},
  {t:'رابط حصر الوعي الفكري مطلوب الانتهاء منه اليوم الأحد ٧-٥-١٤٤٨هـ',url:'https://forms.cloud.microsoft/r/ezaF8WGK4e?origin=lprLink',until:'2026-10-18'}
 ];
 const riyadhDay=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return today()}};
