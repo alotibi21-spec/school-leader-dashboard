@@ -1,8 +1,7 @@
-const MREFRESH=['/models/weekly-reports/'];// files replaced in this release: drop stale cached copies on activate
-const V='sld-1.13.6-r2',F=['./','index.html','styles.css','app.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','fonts/Tajawal-400.ttf','fonts/Tajawal-700.ttf','fonts/Tajawal-800.ttf','vendor/xlsx.full.min.js','vendor/qrcode.js','survey.html','survey.js'];
+const V='sld-1.13.7',F=['./','index.html','styles.css','app.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','fonts/Tajawal-400.ttf','fonts/Tajawal-700.ttf','fonts/Tajawal-800.ttf','vendor/xlsx.full.min.js','vendor/qrcode.js','survey.html','survey.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(F.map(u=>fetch(u,{cache:'no-store'}).then(r=>{if(r.ok)return c.put(u,r)})))))});
 self.addEventListener('message',e=>{if(e.data==='skip')self.skipWaiting()});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V&&x!=='sld-models-1').map(x=>caches.delete(x)))).then(()=>caches.open('sld-models-1')).then(c=>c.keys().then(r=>Promise.all(r.filter(q=>MREFRESH.some(p=>q.url.includes(p))).map(q=>c.delete(q))))).then(()=>self.clients.claim()))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V&&x!=='sld-models-1').map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const q=e.request;if(q.method!=='GET'||new URL(q.url).origin!==location.origin)return;
  if(new URL(q.url).pathname.includes('/models/')){e.respondWith(caches.open('sld-models-1').then(c=>c.match(q,{ignoreSearch:true}).then(r=>r||fetch(q,{cache:'no-cache'}).then(n=>{if(n&&n.ok&&n.status===200)c.put(q,n.clone());return n}))));return}
  e.respondWith(fetch(q,{cache:'no-store'}).then(r=>{if(r&&r.ok){const cp=r.clone();caches.open(V).then(c=>c.put(q,cp))}return r})
