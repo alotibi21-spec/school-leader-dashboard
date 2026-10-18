@@ -693,6 +693,7 @@ function render(){const v=view(),m=$('#main');
  if(!searchQ&&v==='committees'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=comCards();if(w.firstElementChild)hd.after(w.firstElementChild)}
  if(!searchQ&&SEC_VIEWS.includes(v)&&v!=='oplan'&&v!=='exams'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=secCard(v);hd?hd.after(w.firstElementChild):m.prepend(w.firstElementChild)}
  if(!searchQ&&v==='tpd'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=tpdLibrary();hd.after(w.firstElementChild);if(tpdCached==null)tpdCheck()}
+ if(window._tkReady&&tkLastG!==null&&tkLastG!==tkGender())renderTicker();
  m.innerHTML=fem(m.innerHTML);chrome()}
 let NAV0;function chrome(){const s=DB.settings;document.documentElement.dataset.g=s.gender==='بنات'?'girls':'boys';applyThemeColor();$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';NAV0=NAV0||$('#nav').innerHTML;const nv=fem(NAV0);if($('#nav').dataset.g!==String(s.gender)){$('#nav').innerHTML=nv;$('#nav').dataset.g=s.gender}$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view()));document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
  const lg=$('#topLogo');if(s.logo){lg.src=s.logo;lg.hidden=false}else lg.hidden=true;
@@ -1124,13 +1125,21 @@ setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
 /* ---------- Ticker (data-driven): {t:text, url?:link, until?:'YYYY-MM-DD' last day shown, Asia/Riyadh} ---------- */
 const TICKER=[
  {t:'⏰ تثبيت الغياب يوميًا قبل الساعة ٨ ص'},
+ {qiyam:1,day21:1},
  {t:'رابط حصر الوعي الفكري مطلوب الانتهاء منه اليوم الأحد ٧-٥-١٤٤٨هـ',url:'https://forms.cloud.microsoft/r/ezaF8WGK4e?origin=lprLink',until:'2026-10-18'}
 ];
 const riyadhDay=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return today()}};
-function renderTicker(){const el=$('#ticker');if(!el)return;const d=riyadhDay();const items=TICKER.filter(x=>!x.until||d<=x.until);
- const html=items.map(x=>x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer" class="tk-link">🔗 ${esc(x.t)} — <u>اضغط هنا</u></a>`:`<span class="tk-item">${esc(x.t)}</span>`).join('<span class="tk-sep" aria-hidden="true">✦</span>');
+const QIYAM_URL={'بنين':'https://forms.cloud.microsoft/pages/responsepage.aspx?id=0gr9a2BA-U-RAIEOdddRtRxZnL_yVexCnY4FPtcLqQFUMjhZQTk4ODRSREk1MkdHUDEyUUxYSTE4TC4u&route=shorturl','بنات':'https://forms.cloud.microsoft/Pages/ShareFormPage.aspx?id=UYPKa9MBUkKF6r2o-NI1vc2eKLLGyGZJhe9kvIOLT1JUQUtIVkxRWDdRQ0VNVURJQThZSk5BMVRTMi4u&sharetoken=91R1Kn1nsttfjH00Z8Ow'};
+const tkGender=()=>{try{return DB.settings.gender||''}catch(e){return ''}};var tkLastG=null;
+function tkResolve(x){if(!x.qiyam)return x;const g=tkGender(),who=g==='بنين'?'مدير':g==='بنات'?'مديرة':'مدير/مديرة';
+ const t=`يُعبّأ في ٢١ من كل شهر ميلادي من قبل كل ${who} مدرسة مستهدفة في مشروع ترسيخ القيم وتعزيز الهوية الوطنية`;
+ return QIYAM_URL[g]?{...x,t,url:QIYAM_URL[g]}:{...x,t,urls:[['رابط البنين',QIYAM_URL['بنين']],['رابط البنات',QIYAM_URL['بنات']]]}}
+function renderTicker(){const el=$('#ticker');if(!el)return;const d=riyadhDay();tkLastG=tkGender();const hot=d.slice(8)==='21';const items=TICKER.filter(x=>!x.until||d<=x.until).map(tkResolve);
+ const html=items.map(x=>{const h=x.day21&&hot,pre=h?'<b class="tk-hot">📌 اليوم ٢١</b> ':'';const cls=h?' tk-hotitem':'';
+ if(x.urls)return `<span class="tk-item${cls}">${pre}🔗 ${esc(x.t)} — اضغط هنا: ${x.urls.map(([l,u])=>`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" class="tk-link"><u>${l}</u></a>`).join(' | ')}</span>`;
+ return x.url?`<span class="${cls.trim()}">${pre}`+`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer" class="tk-link">🔗 ${esc(x.t)} — <u>اضغط هنا</u></a></span>`:`<span class="tk-item">${esc(x.t)}</span>`}).join('<span class="tk-sep" aria-hidden="true">✦</span>');
  el.setAttribute('aria-label','تنبيهات: '+items.map(x=>x.t).join('، '));el.innerHTML=`<span class="tk-run">${html}</span>`;
  const run=el.firstElementChild;requestAnimationFrame(()=>{const w=run.scrollWidth+el.clientWidth,sp=innerWidth<820?55:80;run.style.animationDuration=Math.max(10,Math.round(w/sp))+'s'})}
-(function(){try{renderTicker();const el=$('#ticker');let t;const pause=()=>{el.classList.add('paused');clearTimeout(t);t=setTimeout(()=>el.classList.remove('paused'),5000)};
+(function(){try{renderTicker();window._tkReady=1;const el=$('#ticker');let t;const pause=()=>{el.classList.add('paused');clearTimeout(t);t=setTimeout(()=>el.classList.remove('paused'),5000)};
  el.addEventListener('pointerdown',pause);el.addEventListener('touchstart',pause,{passive:true});el.addEventListener('focusin',()=>el.classList.add('paused'));el.addEventListener('focusout',()=>el.classList.remove('paused'));
  let lastDay=riyadhDay();setInterval(()=>{const d=riyadhDay();if(d!==lastDay){lastDay=d;renderTicker()}},60000);let rw=innerWidth;addEventListener('resize',()=>{if(Math.abs(innerWidth-rw)>40){rw=innerWidth;renderTicker()}})}catch(e){}})();
