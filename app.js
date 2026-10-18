@@ -351,7 +351,7 @@ function bkDue(){const s=DB.settings,ev=+s.backupEvery;if(!ev||!s.setupDone||!bk
  if(s.backupSnooze&&t<s.backupSnooze)return false;return dDiff(t,s.lastBackup||s.bkSince)>=ev}
 function bkCheck(){try{if(document.querySelector('dialog[open]')||!bkDue()){if(document.querySelector('dialog[open]'))bkHide();return}if($('#bkRem'))return;
  const s=DB.settings,n=s.lastBackup?dDiff(today(),s.lastBackup):null;const el=document.createElement('div');el.id='bkRem';el.setAttribute('role','status');
- el.innerHTML=`<div class="grow"><b>💾 تذكير بالنسخ الاحتياطي</b><div class="small">${n!=null?`مرّ ${n} يوماً على آخر نسخة احتياطية (${s.lastBackup}).`:'لم تُؤخذ نسخة احتياطية بعد.'} البيانات محفوظة على هذا الجهاز فقط، ويُنصح بحفظ نسخة منها.</div></div><div class="btns"><button type="button" class="btn sm gold" data-act="export">نسخ احتياطي الآن</button><button type="button" class="btn sm ghost" data-act="bksnooze">ذكّرني لاحقًا</button></div>`;
+ el.innerHTML=`<div class="grow"><b>💾 تذكير بالنسخ الاحتياطي</b><div class="small">${n!=null?`مرّ ${n} يوماً على آخر نسخة احتياطية (<bdi dir="ltr">${s.lastBackup}</bdi>).`:'لم تُؤخذ نسخة احتياطية بعد.'} البيانات محفوظة على هذا الجهاز فقط، ويُنصح بحفظ نسخة منها.</div></div><div class="btns"><button type="button" class="btn sm gold" data-act="export">نسخ احتياطي الآن</button><button type="button" class="btn sm ghost" data-act="bksnooze">ذكّرني لاحقًا</button></div>`;
  document.body.appendChild(el)}catch(e){}}
 
 /* ---------- Teacher professional growth models (bundled from the shared Drive folder) ---------- */
@@ -727,7 +727,7 @@ ${stageGenderFields(s)}
  <div class="btns" style="margin:8px 0"><button class="btn ghost" data-act="notif">تفعيل إشعارات المتصفح</button><button class="btn ghost" data-act="chime">تجربة الصوت</button></div>
  <p class="small muted">حالة الإشعارات: <b id="nstate">${'Notification' in window?({granted:'مفعّلة',denied:'مرفوضة (فعّلها من إعدادات المتصفح)',default:'غير مفعّلة'})[Notification.permission]:'غير مدعومة في هذا المتصفح'}</b>.<br>تنبيه: تعمل التذكيرات والإشعارات فقط أثناء فتح التطبيق/التبويب أو تشغيل التطبيق المثبّت؛ لا يوجد خادم لإرسال إشعارات والتطبيق مغلق.</p></div></div>
  <div class="grid two"><div class="card"><h3>النسخ الاحتياطي</h3><p class="small muted">البيانات محفوظة في هذا المتصفح على هذا الجهاز فقط (الحجم الحالي ≈ ${used} ك.ب). مسح بيانات المتصفح يحذفها — صدّر نسخة احتياطية بانتظام وانقلها بين الأجهزة بالاستيراد.</p>
- <p class="small" id="bkLast">آخر نسخة احتياطية: <b>${s.lastBackup?esc(s.lastBackup)+' (منذ '+dDiff(today(),s.lastBackup)+' يوم)':'لم تُؤخذ نسخة بعد'}</b></p>
+ <p class="small" id="bkLast">آخر نسخة احتياطية: <b>${s.lastBackup?'<bdi dir="ltr">'+esc(s.lastBackup)+'</bdi> (منذ '+dDiff(today(),s.lastBackup)+' يوم)':'لم تُؤخذ نسخة بعد'}</b></p>
  <div class="fld" style="margin-bottom:10px"><label for="s_bk">تذكير النسخ الاحتياطي</label><select id="s_bk">${[[7,'كل 7 أيام'],[14,'كل 14 يوماً'],[30,'كل 30 يوماً'],[0,'إيقاف التذكير']].map(([v,l])=>`<option value="${v}" ${+s.backupEvery===v?'selected':''}>${l}</option>`).join('')}</select></div>
  <div class="btns"><button class="btn gold" data-act="export">تصدير نسخة احتياطية JSON</button><button class="btn ghost" data-act="import">استيراد نسخة احتياطية</button></div></div>
  <div class="card"><h3>البيانات التجريبية والتهيئة</h3><p class="small muted">البيانات التجريبية معلَّمة بشارة «تجريبي» وتظهر لافتة تنبيه أثناء وجودها، ويمكن حذفها بضغطة.</p>
