@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.13.4';
+const APP_VERSION='1.13.5';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1096,9 +1096,14 @@ window.addEventListener('storage',e=>{if(e.key===KEY){load();render()}});
 let deferredInstall=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;chrome()});
 
 /* ---------- Service worker + update banner ---------- */
+/* A modal <dialog> makes the page behind it inert, so mirror the update banner inside any open dialog */
+function updSync(){const bar=$('#updateBar');if(!bar)return;document.querySelectorAll('dialog').forEach(d=>{let u=d.querySelector(':scope>.updin');const want=!bar.hidden&&d.open;
+ if(want&&!u){u=document.createElement('div');u.className='banner gold updin';u.setAttribute('role','status');u.innerHTML='يتوفر إصدار جديد — احفظ عملك ثم حدّث. <button type="button" class="btn sm">تحديث الآن</button>';u.querySelector('button').onclick=()=>{try{flushSave()}catch(e){}$('#updBtn').click()};d.prepend(u)}
+ else if(!want&&u)u.remove()})}
+new MutationObserver(updSync).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['open','hidden']});
 if('serviceWorker' in navigator&&location.protocol!=='file:'){
  navigator.serviceWorker.register('sw.js').then(reg=>{
-  const show=()=>{$('#updateBar').hidden=false};
+  const show=()=>{$('#updateBar').hidden=false;updSync()};
   if(reg.waiting&&navigator.serviceWorker.controller)show();
   reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)show()})});
   setInterval(()=>reg.update().catch(()=>{}),30*60*1000);
