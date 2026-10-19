@@ -1,6 +1,6 @@
 'use strict';
 const CREDIT='تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر';
-const APP_VERSION='1.13.7';
+const APP_VERSION='1.13.8';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -209,6 +209,15 @@ function impPrint(id){const rows=id?DB.impact.filter(x=>x.id===id):DB.impact;let
 const SV_GROUPS=['الطلاب','أولياء الأمور','المعلمين','الإداريين','أخرى'];
 const LIK=['','غير موافق بشدة','غير موافق','محايد','موافق','موافق بشدة'];
 const QT={mc:'اختيار من متعدد',likert:'مقياس ليكرت (1–5)',yn:'نعم / لا',text:'نص حر'};
+Object.assign(S,{evals:{t:'تحليل نتائج التقويم المدرسي',one:'تقويم',f:[
+  {k:'type',l:'نوع التقويم',type:'select',opts:['تقويم ذاتي','تقويم خارجي'],req:1},{k:'date',l:'تاريخ التقويم',type:'date',def:'today',req:1},{k:'year',l:'العام الدراسي',defFn:()=>DB.settings.year||'',max:40},
+  {k:'overall',l:'النسبة العامة %',type:'number',dec:1,min:0,max:100},{k:'cls',l:'التصنيف (كما ورد في التقرير)',max:120,listFn:()=>[...new Set(DB.evals.map(x=>x.cls).filter(Boolean))]},
+  {k:'hd',l:'نسب المجالات (كما وردت في التقرير)',type:'head'},
+  {k:'d1',l:'الإدارة المدرسية %',type:'number',dec:1,min:0,max:100},{k:'d2',l:'التعليم والتعلم %',type:'number',dec:1,min:0,max:100},{k:'d3',l:'نواتج التعلم %',type:'number',dec:1,min:0,max:100},{k:'d4',l:'البيئة المدرسية %',type:'number',dec:1,min:0,max:100},
+  {k:'weak',l:'المؤشرات الأضعف',type:'rows',full:1,rc:[{k:'code',l:'رمز المؤشر',w:'7em'},{k:'text',l:'نص المؤشر'},{k:'pct',l:'النسبة %',num:1,w:'6em'}]},
+  {k:'notes',l:'ملاحظات',type:'textarea',full:1}],
+  cols:['date','type','year','overall','_wd','cls'],date:'date',vl:{_wd:'المجال الأضعف'},
+  vc:{overall:(x,h)=>evNum(x.overall)==null?'—':x.overall+'%',_wd:(x,h)=>{const w=evGaps(x).find(o=>o.weak);return w?w.d+' ('+w.v+'%)':'—'}}}});
 Object.assign(S,{surveys:{t:'الاستبانات',one:'استبانة',f:[
   {k:'title',l:'عنوان الاستبانة',req:1,full:1},{k:'group',l:'الفئة المستهدفة',type:'select',opts:SV_GROUPS,req:1},{k:'target',l:'عدد المستهدفين',type:'number',min:0,max:100000},
   {k:'date',l:'تاريخ البدء',type:'date',def:'today',req:1},{k:'end',l:'تاريخ الإغلاق',type:'date'},{k:'phone',l:'رقم واتساب لاستقبال الردود (اختياري)',ph:'9665xxxxxxxx'},
@@ -305,6 +314,64 @@ function svPrint(id){const ss=id?DB.surveys.filter(x=>x.id===id):DB.surveys;let 
  return h+(id?'':secPrint('surveys'))}
 
 
+
+/* ---------- تحليل نتائج التقويم المدرسي (manual entry; no thresholds or weights invented — only differences of entered numbers) ---------- */
+const EVD=['d1','d2','d3','d4'];
+const evNum=v=>v===''||v==null||!Number.isFinite(+v)?null:+v;
+const evR=v=>Math.round(v*10)/10;
+const evSorted=()=>DB.evals.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.created||'').localeCompare(b.created||''));
+const evLatest=()=>{const a=evSorted();return a[a.length-1]||null};
+function evDoms(x){return DOMAINS.map((d,i)=>({d,v:evNum(x[EVD[i]])}))}
+function evGaps(x){const ds=evDoms(x),have=ds.filter(o=>o.v!=null);const mx=have.length?Math.max(...have.map(o=>o.v)):null,mn=have.length?Math.min(...have.map(o=>o.v)):null;
+ return ds.map(o=>({...o,g100:o.v==null?null:evR(100-o.v),gTop:o.v==null||mx==null?null:evR(mx-o.v),weak:o.v!=null&&have.length>1&&o.v===mn&&mn!==mx,top:o.v!=null&&have.length>1&&o.v===mx&&mn!==mx}))}
+function evWeak(x){return (Array.isArray(x.weak)?x.weak:[]).filter(w=>w&&(w.code||w.text)).map((w,i)=>({...w,p:evNum(w.pct),i})).sort((a,b)=>(a.p==null)-(b.p==null)||(a.p??0)-(b.p??0)||a.i-b.i)}
+function evBars(rows,opt={}){/* rows:[{l,v,cls}] horizontal bars 0..100, labels on the right */const nar=!opt.print&&innerWidth<600,W=nar?360:560,lh=nar?30:34,H=rows.length*lh+24,lab=nar?118:150,bw=W-lab-(nar?44:60);
+ return `<svg class="evsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opt.aria||'رسم بياني')}" preserveAspectRatio="xMidYMid meet">${[0,25,50,75,100].map(t=>{const xx=W-lab-bw*t/100;return `<line x1="${xx}" y1="4" x2="${xx}" y2="${H-18}" class="evgrid"/><text x="${xx}" y="${H-4}" class="evtick" text-anchor="middle">${t}</text>`}).join('')}
+ ${rows.map((r,i)=>{const y=8+i*lh,w=r.v==null?0:bw*Math.max(0,Math.min(100,r.v))/100;return `<text x="${W-4}" y="${y+17}" class="evlab" text-anchor="end">${esc(r.l)}</text><rect x="${W-lab-w}" y="${y+3}" width="${w}" height="20" rx="4" class="evbar ${r.cls||''}"/><text x="${W-lab-w-6}" y="${y+18}" class="evval" text-anchor="end">${r.v==null?'—':r.v+'%'}</text>`}).join('')}</svg>`}
+function evGroupBars(a,b){/* self vs external per domain */const rows=[];DOMAINS.forEach((d,i)=>{rows.push({l:d+' — ذاتي',v:evNum(a[EVD[i]]),cls:'s'});rows.push({l:'خارجي',v:evNum(b[EVD[i]]),cls:'e'})});return evBars(rows,{aria:'مقارنة التقويم الذاتي والخارجي'})}
+function evLine(list){const pts=list.filter(x=>evNum(x.overall)!=null);if(pts.length<2)return'';const W=560,H=170,p=34,n=pts.length,vs=pts.map(x=>+x.overall),lo=Math.max(0,Math.floor((Math.min(...vs)-5)/5)*5),hi=Math.min(100,Math.ceil((Math.max(...vs)+5)/5)*5)||100;
+ const X=i=>W-p-(W-2*p)*(n===1?0:i/(n-1)),Y=v=>H-p-(H-2*p)*((v-lo)/((hi-lo)||1));
+ return `<svg class="evsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="تطور النسبة العامة"><line x1="${p}" y1="${H-p}" x2="${W-p}" y2="${H-p}" class="evgrid"/><text x="${W-4}" y="${Y(hi)+4}" class="evtick" text-anchor="end">${hi}</text><text x="${W-4}" y="${Y(lo)+4}" class="evtick" text-anchor="end">${lo}</text>
+ <polyline fill="none" class="evln" points="${pts.map((x,i)=>X(i)+','+Y(+x.overall)).join(' ')}"/>${pts.map((x,i)=>`<circle cx="${X(i)}" cy="${Y(+x.overall)}" r="5" class="evpt ${x.type==='تقويم خارجي'?'e':'s'}"/><text x="${X(i)}" y="${Y(+x.overall)-10}" class="evval" text-anchor="middle">${+x.overall}%</text><text x="${X(i)}" y="${H-p+16}" class="evtick" text-anchor="middle">${esc((x.date||'').slice(0,7))}</text>`).join('')}</svg>`}
+const evSel=()=>{const id=flt.evsel;return DB.evals.find(x=>x.id===id)||evLatest()};
+function evPair(x){if(!x||!x.year)return null;const same=evSorted().filter(y=>y.year===x.year);const s=same.filter(y=>y.type==='تقويم ذاتي').pop(),e=same.filter(y=>y.type==='تقويم خارجي').pop();return s&&e?{s,e}:null}
+const evD=v=>v==null?'—':'<bdi dir="ltr">'+(v>0?'+':v<0?'\u2212':'')+evR(Math.abs(v))+'</bdi>';
+function evHowto(){return `<details class="card howto" ${DB.evals.length?'':'open'}><summary><b>📘 تعليمات الاستخدام — تحليل نتائج التقويم المدرسي</b></summary><ol class="offl" style="list-style:decimal">
+ <li><b>أضف التقويم:</b> اضغط «＋ إضافة» واختر النوع (تقويم ذاتي / تقويم خارجي) والتاريخ والعام الدراسي، ثم انقل من تقرير التقويم النسبة العامة ونسب المجالات الأربعة والتصنيف كما وردت فيه.</li>
+ <li><b>أضف المؤشرات الأضعف:</b> في «المؤشرات الأضعف» اكتب رمز المؤشر ونصه ونسبته إن وُجدت، واضغط «＋ إضافة مؤشر» لكل مؤشر.</li>
+ <li><b>أرفق التقرير:</b> زر 📎 لحفظ ملف التقرير (PDF) شاهداً على هذا الجهاز.</li>
+ <li><b>اقرأ التحليل:</b> يحسب القسم الفجوة = 100 − نسبة المجال، والفرق عن أقوى مجال، ويُبرز المجال الأضعف، ويرتّب المؤشرات الأضعف أولويات (الأقل نسبة أولاً). لا يضيف القسم أي أوزان أو حدود رسمية؛ كل الحسابات فروق بين الأرقام التي تُدخلها.</li>
+ <li><b>أرسل الأولويات:</b> «إرسال إلى خطة التحسين» ينشئ لكل مؤشر إجراءً مقترحاً في «إجراءات خطة التحسين» وبرنامجاً في «قياس الأثر» (القيمة الأساسية = نسبة المؤشر)، لتكمل المسؤول والموعد والقيمة المستهدفة.</li>
+ <li><b>قارن وتابع:</b> عند وجود تقويم ذاتي وخارجي للعام نفسه تظهر المقارنة والفرق لكل مجال، ويعرض «السجل» تغيّر النسب عبر التقويمات. اطبع التقرير من زر «طباعة التحليل».</li></ol></details>`}
+function evAnalysis(x,print){if(!x)return'';const g=evGaps(x),wk=evWeak(x),wd=g.find(o=>o.weak);
+ const tbl=`<div class="tbl-wrap"><table class="evt" border="1" cellspacing="0" cellpadding="4"><tr><th>المجال</th><th>النسبة</th><th>الفجوة إلى <bdi>100%</bdi></th><th>الفرق عن أقوى مجال</th></tr>${g.map(o=>`<tr class="${o.weak?'evweak':''}"><td>${o.weak?'⚠️ ':o.top?'⭐ ':''}${esc(o.d)}</td><td>${o.v==null?'—':o.v+'%'}</td><td>${o.g100==null?'—':o.g100}</td><td>${o.gTop==null?'—':o.gTop}</td></tr>`).join('')}</table></div>`;
+ const pr=wk.length?`<ol class="evpri">${wk.map(w=>`<li><b><bdi dir="ltr">${esc(w.code||'')}</bdi></b> ${esc(w.text||'')}${w.p!=null?` — <b>${w.p}%</b> (الفجوة ${evR(100-w.p)})`:''}</li>`).join('')}</ol>`:'<p class="small muted">لم تُسجَّل مؤشرات أضعف لهذا التقويم.</p>';
+ return `<div class="evhead"><b>${esc(x.type||'')}</b> — ${esc(fmtPlain(x.date))}${x.year?' — العام '+esc(x.year):''}${evNum(x.overall)!=null?` — النسبة العامة <b>${+x.overall}%</b>`:''}${x.cls?` — التصنيف: <b>${esc(x.cls)}</b>`:''}</div>
+ ${evBars(g.map(o=>({l:o.d,v:o.v,cls:o.weak?'w':o.top?'t':''})),{aria:'نسب المجالات'})}
+ ${wd?`<p class="evnote">المجال الأضعف: <b>${esc(wd.d)}</b> (${wd.v}%) — الفجوة إلى 100%: ${wd.g100}، والفرق عن أقوى مجال: ${wd.gTop}.</p>`:''}${tbl}
+ <h4 style="margin:12px 0 4px">الأولويات (المؤشرات الأضعف مرتبة من الأقل نسبة)</h4>${pr}${x.notes?`<p class="small"><b>ملاحظات:</b> <span style="white-space:pre-line">${esc(x.notes)}</span></p>`:''}${print&&evPrint('evals',x.id)?`<p><b>الشواهد:</b></p>${evPrint('evals',x.id)}`:''}`}
+function evCompare(pp){if(!pp)return'';const{s,e}=pp;const rows=[['النسبة العامة',evNum(s.overall),evNum(e.overall)],...DOMAINS.map((d,i)=>[d,evNum(s[EVD[i]]),evNum(e[EVD[i]])])];
+ return `<div class="tbl-wrap"><table class="evt" border="1" cellspacing="0" cellpadding="4"><tr><th>المجال</th><th>التقويم الذاتي (${esc(fmtPlain(s.date))})</th><th>التقويم الخارجي (${esc(fmtPlain(e.date))})</th><th>الفرق (خارجي − ذاتي)</th></tr>${rows.map(([l,a,b])=>`<tr><td>${esc(l)}</td><td>${a==null?'—':a+'%'}</td><td>${b==null?'—':b+'%'}</td><td><b>${a==null||b==null?'—':evD(b-a)}</b></td></tr>`).join('')}</table></div>`}
+function evHistory(){const a=evSorted();if(!a.length)return'';let prev=null;
+ return `<div class="tbl-wrap"><table class="evt evh" border="1" cellspacing="0" cellpadding="4"><tr><th>التاريخ</th><th>النوع</th><th>العام</th><th>النسبة العامة</th>${DOMAINS.map(d=>`<th>${esc(d)}</th>`).join('')}</tr>${a.map(x=>{const cell=(k)=>{const v=evNum(x[k]),p=prev?evNum(prev[k]):null;return `<td>${v==null?'—':v+'%'}${v!=null&&p!=null?` <span class="small ${v>p?'up':v<p?'down':''}">(${evD(v-p)})</span>`:''}</td>`};const r=`<tr><td>${esc(fmtPlain(x.date))}</td><td>${esc(x.type||'')}</td><td>${esc(x.year||'')}</td>${cell('overall')}${EVD.map(cell).join('')}</tr>`;prev=x;return r}).join('')}</table></div><p class="small muted">بين القوسين: التغيّر عن التقويم السابق في الجدول.</p>`}
+function evView(){if(!DB.evals.length)return evHowto();const x=evSel(),pp=evPair(x),a=evSorted();
+ return evHowto()+`<div class="card evcard"><div class="row" style="flex-wrap:wrap;gap:8px"><h3 class="grow" style="margin:0">📊 تحليل التقويم</h3>
+ <select data-evsel aria-label="اختر التقويم">${a.slice().reverse().map(y=>`<option value="${y.id}" ${y.id===x.id?'selected':''}>${esc((y.type||'')+' — '+fmtPlain(y.date)+(y.year?' — '+y.year:''))}</option>`).join('')}</select></div>
+ ${evAnalysis(x)}<div class="btns" style="margin-top:10px"><button class="btn gold" data-act="evsend" data-id="${x.id}" ${evWeak(x).length?'':'disabled'}>🎯 إرسال إلى خطة التحسين</button>${evBtn('evals',x.id)}<button class="btn ghost" data-act="edit" data-c="evals" data-id="${x.id}">تعديل</button><button class="btn ghost" data-act="evprint" data-id="${x.id}">🖨️ طباعة التحليل</button></div></div>
+ ${pp?`<div class="card"><h3>⚖️ مقارنة التقويم الذاتي والخارجي — العام ${esc(x.year)}</h3>${evGroupBars(pp.s,pp.e)}<div class="small muted evlegend"><span class="lg s"></span> ذاتي <span class="lg e"></span> خارجي</div>${evCompare(pp)}</div>`:''}
+ ${a.length>1?`<div class="card"><h3>📈 سجل التقويمات وتطور النسب</h3>${evLine(a)}${evHistory()}</div>`:''}`}
+function evSend(id){const x=DB.evals.find(y=>y.id===id);if(!x)return;const wk=evWeak(x);if(!wk.length)return;const wd=evGaps(x).find(o=>o.weak);
+ const tag=w=>'eval:'+x.id+':'+(w.code||w.text);const fresh=wk.filter(w=>!DB.actions.some(a=>a.src===tag(w))&&!DB.impact.some(a=>a.src===tag(w)));
+ if(!fresh.length){toast('أُرسلت هذه الأولويات سابقاً');return}
+ if(!confirm(`سيُضاف ${fresh.length} إجراء مقترح إلى «إجراءات خطة التحسين» و${fresh.length} برنامج إلى «قياس الأثر» (للمراجعة والإكمال). متابعة؟`))return;
+ const src=`مقترح من تحليل ${x.type||'التقويم'} ${fmtPlain(x.date)}`;const now=new Date().toISOString();
+ fresh.forEach(w=>{const ind=[w.code?'\u2066'+w.code+'\u2069':'',w.text].filter(Boolean).join(' — ');const dom=w.domain&&DOMAINS.includes(w.domain)?w.domain:(wd?wd.d:DOMAINS[0]);
+  const a={id:uid(),created:now,src:tag(w),action:'معالجة المؤشر: '+ind,domain:dom,owner:'',deadline:'',status:'لم يبدأ',progress:0,indicator:ind,evidence:src+(w.p!=null?` — نسبة المؤشر ${w.p}%`:'')};DB.actions.push(a);audit('إضافة',  'actions',a);
+  const m={id:uid(),created:now,src:tag(w),title:'تحسين المؤشر: '+ind,kind:'برنامج',domain:dom,start:today(),goal:'رفع نسبة تحقق المؤشر «'+ind+'»',i1n:ind,i1u:'%',i1d:'الأعلى أفضل',i1b:w.p??'',i1t:'',i1a:'',status:'مخطط (قبل التنفيذ)',notes:src+' — حدِّد القيمة المستهدفة والمسؤول.'};DB.impact.push(m);audit('إضافة','impact',m)});
+ save();render();toast(`أُضيف ${fresh.length} إجراء و${fresh.length} برنامج قياس أثر`)}
+function evPrintAll(id){const rows=id?DB.evals.filter(x=>x.id===id):evSorted();const x=id?rows[0]:evLatest();let h=printHead('تحليل نتائج التقويم المدرسي',x?(x.type||'')+' — '+fmtPlain(x.date)+(x.year?' — العام '+x.year:''):'');
+ if(!x)return h+'<p>لا توجد تقويمات.</p>';h+=`<section>${evAnalysis(x,true)}</section>`;const pp=evPair(x);if(pp)h+=`<section><h3>مقارنة التقويم الذاتي والخارجي — العام ${esc(x.year)}</h3>${evGroupBars(pp.s,pp.e)}${evCompare(pp)}</section>`;
+ if(DB.evals.length>1)h+=`<section><h3>سجل التقويمات</h3>${evLine(evSorted())}${evHistory()}</section>`;return h+secPrint('evals')}
 
 /* ---------- Backup reminder ---------- */
 const dDiff=(a,b)=>Math.round((Date.parse(a)-Date.parse(b))/864e5);
@@ -429,7 +496,7 @@ function save(){const ind=$('#saveInd');ind.textContent='… جارٍ الحفظ
  saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));savePend=false;ind.textContent='✓ محفوظ '+new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});ind.className='save'}
  catch(e){ind.textContent='✗ تعذّر الحفظ';ind.className='save';toast('تعذّر الحفظ: قد تكون مساحة التخزين ممتلئة (قلّل حجم الشعار أو صدّر نسخة احتياطية).')}},250)}
 function audit(op,col,item){DB.audit.push({t:new Date().toISOString(),op,col,title:itemTitle(col,item)});if(DB.audit.length>1000)DB.audit.splice(0,DB.audit.length-1000)}
-function itemTitle(c,x){if(!x)return'';return String(x.title||x.action||x.name||x.program||x.goal||x.teacher||x.student||x.parent||x.cls||x.staff||x.day||'').slice(0,80)}
+function itemTitle(c,x){if(!x)return'';return String(x.title||x.action||x.name||x.program||x.goal||x.teacher||x.student||x.parent||x.cls||x.staff||x.day||(c==='evals'&&x.type?x.type+' '+(x.date||''):'')||'').slice(0,80)}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200)}
 const hasSample=()=>COLS.some(c=>DB[c].some(x=>x.sample));
 
@@ -467,18 +534,21 @@ function cellVal(c,k,x,hl){if(S[c].vc&&S[c].vc[k])return S[c].vc[k](x,true);if(k
  v=esc(v??'');if(hl)v=v.replace(new RegExp(hl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark class="hl">${m}</mark>`);return v||'—'}
 
 /* ---------- Form dialog with validation ---------- */
+function rowsLine(x,r){return `<div class="rw">${x.rc.map(cc=>`<input data-rk="${cc.k}" aria-label="${esc(cc.l)}" placeholder="${esc(cc.l)}" value="${esc(r[cc.k]??'')}" ${cc.num?'type="number" inputmode="decimal" step="any" min="0" max="100" data-novoice':'maxlength="500"'} ${cc.w?`style="flex:0 0 ${cc.w}"`:''}>`).join('')}<button type="button" class="btn sm ghost" data-rwdel aria-label="حذف المؤشر">🗑</button></div>`}
 function openForm(c,item,onSaved){const sc=S[c],isNew=!item;item=item||{};
  const f=$('#dlgForm');
  f.innerHTML=`<div class="dlg-h"><span>${isNew?'إضافة':'تعديل'} ${sc.one}</span><button type="button" class="iconbtn" data-x aria-label="إغلاق">✕</button></div><div class="dlg-b">`+
- sc.f.map(x=>{if(x.type==='head')return `<div class="fld full fhead"><b>${esc(x.l)}</b></div>`;let v=item[x.k];if(v==null&&isNew){v=x.def==='today'?today():x.def??''}if(v==null)v='';const id='f_'+x.k;const req=x.req?' <span class="req">*</span>':'';
+ sc.f.map(x=>{if(x.type==='head')return `<div class="fld full fhead"><b>${esc(x.l)}</b></div>`;let v=item[x.k];if(v==null&&isNew){v=x.defFn?x.defFn():x.def==='today'?today():x.def??''}if(v==null)v='';const id='f_'+x.k;const req=x.req?' <span class="req">*</span>':'';
   let inp;const xo=x.optsFn?x.optsFn():x.opts;if(x.type==='select'&&x.optsFn)inp=`<select id="${id}" name="${x.k}">${xo.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o||'— بدون —')}</option>`).join('')}</select>`;else if(x.type==='select')inp=`<select id="${id}" name="${x.k}">${x.req&&!v?'<option value="">— اختر —</option>':''}${x.opts.map(o=>`<option ${fem(o)===fem(String(v))?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
   else if(x.type==='textarea')inp=`<textarea id="${id}" name="${x.k}" maxlength="5000">${esc(v)}</textarea>`;
+  else if(x.type==='rows')inp=`<div class="rowsed" data-rows="${x.k}" id="${id}">${(Array.isArray(v)&&v.length?v:[{}]).map(r=>rowsLine(x,r)).join('')}</div><button type="button" class="btn sm ghost" data-rowadd="${x.k}">＋ إضافة مؤشر</button>`;
+  else if(x.listFn)inp=`<input id="${id}" name="${x.k}" value="${esc(v)}" maxlength="${x.max||300}" list="dl_${x.k}" autocomplete="off"><datalist id="dl_${x.k}">${x.listFn().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`;
   else inp=`<input id="${id}" name="${x.k}" type="${x.type||'text'}" value="${esc(v)}" ${x.min!=null?`min="${x.min}"`:''} ${x.max!=null&&x.type==='number'?`max="${x.max}"`:''} maxlength="${x.max&&x.type!=='number'?x.max:300}" ${x.ph?`placeholder="${esc(x.ph)}"`:''} ${x.type==='number'?(x.dec?'inputmode="decimal" step="any"':'inputmode="numeric" step="1"'):''}>`;
   return `<div class="fld ${x.full?'full':''}"><label for="${id}">${esc(x.l)}${req}</label>${inp}<span class="err" id="e_${x.k}"></span></div>`}).join('')+
  `</div><div class="dlg-f"><button class="btn gold" value="ok" type="submit">حفظ (Ctrl+Enter)</button><button type="button" class="btn ghost" data-x>إلغاء</button>${!isNew?'<button type="button" class="btn red" data-del style="margin-inline-start:auto">حذف</button>':''}</div>`;
  f.innerHTML=fem(f.innerHTML);const dlg=$('#dlg');
  f.onsubmit=e=>{e.preventDefault();const data={};let ok=true;
-  sc.f.forEach(x=>{if(x.type==='head')return;const el=f.elements[x.k];let v=el.value.trim();const fe=$('#e_'+x.k);let err='';
+  sc.f.forEach(x=>{if(x.type==='head')return;if(x.type==='rows'){const arr=[];let bad='';$$(`[data-rows="${x.k}"] .rw`,f).forEach(rw=>{const o={};x.rc.forEach(cc=>{const iv=$(`[data-rk="${cc.k}"]`,rw).value.trim();o[cc.k]=cc.num&&iv!==''?Number(iv):iv.slice(0,500);if(cc.num&&iv!==''&&(!Number.isFinite(o[cc.k])||o[cc.k]<0||o[cc.k]>100))bad='النسبة يجب أن تكون بين 0 و100'});if(x.rc.some(cc=>o[cc.k]!==''))arr.push(o)});$('#e_'+x.k).textContent=bad;if(bad)ok=false;data[x.k]=arr;return}const el=f.elements[x.k];let v=el.value.trim();const fe=$('#e_'+x.k);let err='';
    if(x.req&&v==='')err='هذا الحقل مطلوب';
    else if(x.type==='number'&&v!==''){const n=Number(v);if(!Number.isFinite(n)||(!x.dec&&!Number.isInteger(n)))err=x.dec?'أدخل رقماً':'أدخل رقماً صحيحاً';else if(x.min!=null&&n<x.min)err='الحد الأدنى '+x.min;else if(x.max!=null&&n>x.max)err='الحد الأعلى '+x.max;else v=n}
    else if(x.type==='date'&&v!==''&&isNaN(parseD(v)))err='تاريخ غير صالح';
@@ -496,6 +566,8 @@ function openForm(c,item,onSaved){const sc=S[c],isNew=!item;item=item||{};
   save();dlg.close();toast('تم الحفظ');onSaved?onSaved():render()};
  f.onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();f.requestSubmit()}};
  $$('[data-x]',f).forEach(b=>b.onclick=()=>dlg.close());
+ $$('[data-rowadd]',f).forEach(b=>b.onclick=()=>{const x=sc.f.find(y=>y.k===b.dataset.rowadd);const box=$(`[data-rows="${x.k}"]`,f);box.insertAdjacentHTML('beforeend',rowsLine(x,{}));voiceWire(box);$('.rw:last-child input',box).focus()});
+ f.addEventListener('click',e=>{const d=e.target.closest('[data-rwdel]');if(!d)return;const box=d.closest('.rowsed');d.closest('.rw').remove();if(!box.querySelector('.rw')){const x=sc.f.find(y=>y.k===box.dataset.rows);box.insertAdjacentHTML('beforeend',rowsLine(x,{}))}});
  const del=$('[data-del]',f);if(del)del.onclick=()=>{if(!confirm('حذف هذا السجل نهائياً؟'))return;DB[c]=DB[c].filter(x=>x.id!==item.id);delFilesOf(c,item.id);audit('حذف',c,item);save();dlg.close();toast('تم الحذف');render()};
  dlg.showModal();setTimeout(()=>{const first=f.querySelector('.dlg-b input,.dlg-b select,.dlg-b textarea');first&&first.focus()},30)}
 
@@ -616,6 +688,7 @@ function dashboard(){const st=stats(),t=today(),soon=addDays(t,30);
  ${K('تنفيذ خطة التوجيه',st.gPlan==null?'—':st.gPlan+'%',DB.gplan.length+' برنامج مخطط','gold')}
  ${K('ساعات النمو المهني المنفذة',st.pdHours,st.pdCount+' برنامج — '+st.pdBen+' مستفيد','green')}
  ${K('تنفيذ خطة النمو المهني',st.pdPlan==null?'—':st.pdPlan+'%',DB.pdplan.length+' برنامج مخطط','gold')}
+ ${(()=>{const x=evLatest();return K('آخر نتيجة تقويم مدرسي',x&&evNum(x.overall)!=null?x.overall+'%':'—',x?(x.type||'')+' — '+fmtPlain(x.date):'لم يُسجَّل تقويم','blue')})()}
  ${K('متوسط تحقق مؤشرات الأثر',(()=>{const a=DB.impact.map(impScore).filter(v=>v!=null);return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length)+'%':'—'})(),DB.impact.length+' برنامج/مبادرة','green')}
  ${K('ردود الاستبانات',DB.surveys.reduce((a,s)=>a+(s.resp||[]).length,0),DB.surveys.length+' استبانة','blue')}
  ${K('تطبيقات نماذج النمو المهني',DB.tpd.length,new Set(DB.tpd.map(x=>x.teacher)).size+' معلم — '+DB.tpd.filter(x=>x.status==='معتمد').length+' معتمد','gold')}
@@ -693,7 +766,7 @@ ${stageGenderFields(s)}
  <div class="card small muted">الإصدار ${APP_VERSION} — يعمل دون اتصال بعد أول تحميل، ويمكن تثبيته من قائمة المتصفح «تثبيت التطبيق / إضافة إلى الشاشة الرئيسية». <button class="btn sm ghost" data-act="install" id="instBtn" hidden>تثبيت التطبيق</button></div>`}
 
 function searchView(q){const ql=q.toLowerCase();let out='',n=0;
- COLS.forEach(c=>{const r=DB[c].filter(x=>Object.entries(x).some(([k,v])=>k!=='id'&&typeof v!=='object'&&String(v).toLowerCase().includes(ql)));if(r.length){n+=r.length;out+=`<div class="card"><h3>${S[c].t} (${r.length})</h3>${table(c,r.slice(0,50),S[c].cols,q)}</div>`}});
+ COLS.forEach(c=>{const r=DB[c].filter(x=>Object.entries(x).some(([k,v])=>k!=='id'&&(typeof v!=='object'?String(v):Array.isArray(v)?v.map(r=>r&&typeof r==='object'?Object.values(r).join(' '):String(r)).join(' '):'').toLowerCase().includes(ql)));if(r.length){n+=r.length;out+=`<div class="card"><h3>${S[c].t} (${r.length})</h3>${table(c,r.slice(0,50),S[c].cols,q)}</div>`}});
  const tp=DB.templates.filter(t=>t.title.toLowerCase().includes(ql));if(tp.length){n+=tp.length;out+=`<div class="card"><h3>قوالب المهام (${tp.length})</h3>${tp.map(t=>`<div class="row">${esc(t.title)} <span class="pill">${t.period}</span></div>`).join('')}</div>`}
  return `<div class="head"><h2>نتائج البحث عن «${esc(q)}» (${n})</h2></div>${out||'<div class="card empty">لا توجد نتائج</div>'}`}
 
@@ -704,6 +777,7 @@ function render(){const v=view(),m=$('#main');
  if(searchQ)m.innerHTML=searchView(searchQ);
  else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v]&&v!=='oplan')m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
  else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='oplan')m.innerHTML=oplanView();else if(v==='exams')m.innerHTML=examsView();else if(v==='survey')m.innerHTML=surveyView((location.hash.split('?')[1]||''));else if(v==='exam')m.innerHTML=examView((location.hash.split('?')[1]||''));else if(v==='committee')m.innerHTML=committeeView((location.hash.split('?')[1]||''));else if(v==='settings')m.innerHTML=settingsView();else if(v==='evidence')m.innerHTML=evidenceView();else m.innerHTML=dashboard();
+ if(!searchQ&&v==='evals'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=evView();[...w.children].reverse().forEach(ch=>hd.after(ch))}
  if(!searchQ&&(v==='impact'||v==='surveys')){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=(v==='impact'?impHowto()+impCards():svHowto()+svCards());[...w.children].reverse().forEach(ch=>hd.after(ch))}
  if(!searchQ&&v==='committees'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=comCards();if(w.firstElementChild)hd.after(w.firstElementChild)}
  if(!searchQ&&SEC_VIEWS.includes(v)&&v!=='oplan'&&v!=='exams'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=secCard(v);hd?hd.after(w.firstElementChild):m.prepend(w.firstElementChild)}
@@ -740,7 +814,7 @@ function checkReminders(){const now=new Date(),t=today(),hm=pad(now.getHours())+
 
 /* ---------- Export ---------- */
 function rowsFor(c,from,to){const k=S[c].date;return DB[c].filter(x=>(!from||(x[k]||'')>=from)&&(!to||(x[k]||'')<=to))}
-function plainVal(c,k,x){if(S[c].vc&&S[c].vc[k])return S[c].vc[k](x,false);if(k==='rate'){const r=attRate(x);return r==null?'':r+'%'}const f=S[c].f.find(y=>y.k===k)||{};return f.type==='date'?fmtPlain(x[k]):(x[k]??'')}
+function plainVal(c,k,x){if(S[c].vc&&S[c].vc[k])return S[c].vc[k](x,false);if(k==='rate'){const r=attRate(x);return r==null?'':r+'%'}const f=S[c].f.find(y=>y.k===k)||{};if(f.type==='rows')return (Array.isArray(x[k])?x[k]:[]).map(r=>f.rc.map(cc=>r[cc.k]).filter(v=>v!==''&&v!=null).join(' ')+'').join('؛ ');return f.type==='date'?fmtPlain(x[k]):(x[k]??'')}
 function download(name,content,type){const b=content instanceof Blob?content:new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 const csvCell=v=>{v=String(v??'');if(/^[=+\-@]/.test(v))v="'"+v;return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
 function csv(c,rows){const keys=[...S[c].f.filter(f=>f.type!=='head').map(f=>f.k),...(c==='attendance'?['rate']:[])];
@@ -775,6 +849,7 @@ function doPrint(type,from,to){let h='';const range=from||to?`الفترة: ${fr
  else if(type==='tasks'){const r=rowsFor('tasks',from,to);h=printHead(S.tasks.t,(range?range+' — ':'')+'الإنجاز: '+r.filter(x=>x.status==='مكتملة').length+' من '+r.length);PERIODS.forEach(p=>{const a=r.filter(x=>x.period===p).sort((x,y)=>(DOMAINS.indexOf(x.domain)-DOMAINS.indexOf(y.domain))||String(x.due).localeCompare(String(y.due)));if(a.length)h+=`<section><h3>${PICON[p]} المهام — ${p} (${a.filter(x=>x.status==='مكتملة').length}/${a.length})</h3>${ptable('tasks',a)}</section>`})}
  else if(type==='examsall'){h=examPrint('')}
  else if(type==='impact'){h=impPrint('')}
+ else if(type==='evals'){h=evPrintAll('')}
  else if(type==='surveys'){h=svPrint('')}
  else if(type==='committees'){h=printHead(S.committees.t,range);h+=`<section>${ptable('committees',rowsFor('committees',from,to))}</section>`;h+=`<section><h3>ملخص الاجتماعات</h3><table border="1" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse"><tr><th>اللجنة</th><th>الرئيس</th><th>عدد الاجتماعات</th><th>آخر اجتماع</th><th>الملفات</th></tr>${DB.committees.map(c=>{const ms=comMeetings(c);return `<tr><td>${esc(comName(c))}</td><td>${esc(c.head||'')}</td><td>${ms.length}</td><td>${ms[0]?fmtPlain(ms[0].date):''}</td><td>${comFiles(c)}</td></tr>`}).join('')}</table></section>`}
  else if(S[type]){let r=rowsFor(type,from,to);h=printHead(S[type].t,range)+`<section>${ptable(type,r)}</section>`}
@@ -1029,6 +1104,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   opdel:async()=>{if(!confirm('حذف هذا الإصدار من ملف الخطة؟'))return;await delFile(id);render()},
   vtask:()=>{openForm('tasks',null);voiceWire($('#dlgForm'));const t=$('#f_title');const b=t&&t.closest('.vw')?.querySelector('.micb');if(t&&b)voiceStart(t,b);else voiceNote()},
   tpdsave:()=>tpdSave(false),bksnooze:()=>{DB.settings.backupSnooze=addDays(today(),3);save();bkHide();toast('سيُذكّرك التطبيق بعد 3 أيام')},tpdsavevid:()=>tpdSave(true),
+  evsend:()=>evSend(id),evprint:()=>printHTML(evPrintAll(id)),
   impprint:()=>printHTML(impPrint(id)),svprint:()=>printHTML(svPrint(id)),
   svqadd:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv)return;svQs(sv).push({id:'q'+(sv.qn=(sv.qn||0)+1),type:c,t:'',o:c==='mc'?['الخيار الأول','الخيار الثاني']:undefined});delete svLink[id];save();render();const ins=$$('[data-svq$="|t"]');ins.length&&ins[ins.length-1].focus()},
   svqdel:()=>{const sv=DB.surveys.find(x=>x.id===id);if(!sv||!confirm('حذف السؤال؟'))return;sv.q=svQs(sv).filter(q=>q.id!==c);delete svLink[id];save();render()},
@@ -1077,7 +1153,7 @@ document.addEventListener('input',e=>{const el=e.target;if(el.id==='tpdQ'){tpdQ=
  if(el.dataset.evf){flt.evidence[el.dataset.evf]=el.value;clearTimeout(el._t);el._t=setTimeout(()=>{render();const n=$(`[data-evf="${el.dataset.evf}"]`);n&&n.focus()},el.type==='search'?250:0)}
  if(el.dataset.tt){const t=DB.templates.find(x=>x.id===el.dataset.tt);if(t&&el.value.trim()){t.title=el.value.slice(0,200);save()}}
  if(el.dataset.rvn){const[d,i]=el.dataset.rvn.split('|');DB.review[d]=DB.review[d]||{};DB.review[d][i]={...(DB.review[d][i]||{}),n:el.value};DB.review._date=today();save()}});
-document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.svq&&el.dataset.svq.endsWith('|type')){const [sid,qid]=el.dataset.svq.split('|');const sv=DB.surveys.find(x=>x.id===sid);const q=sv&&svQs(sv).find(x=>x.id===qid);if(q){q.type=el.value;if(q.type==='mc'&&!(q.o||[]).length)q.o=['الخيار الأول','الخيار الثاني'];delete svLink[sid];save();render()}return}if(el.dataset.ctask){const[cid,tid]=el.dataset.ctask.split('|');const cm=DB.committees.find(x=>x.id===cid);if(cm){cm.tdone=cm.tdone||{};if(el.checked)cm.tdone[tid]=today();else delete cm.tdone[tid];audit(el.checked?'إنجاز مهمة لجنة':'إلغاء إنجاز مهمة لجنة','committees',{title:comName(cm)});save();const y=scrollY;render();scrollTo(0,y)}return}if(el.dataset.allp)$$(`[data-p="${el.dataset.allp}"]`).forEach(x=>x.checked=el.checked);
+document.addEventListener('change',e=>{const el=e.target;if(el.matches&&el.matches('[data-evsel]')){flt.evsel=el.value;render();return}if(el.dataset&&el.dataset.svq&&el.dataset.svq.endsWith('|type')){const [sid,qid]=el.dataset.svq.split('|');const sv=DB.surveys.find(x=>x.id===sid);const q=sv&&svQs(sv).find(x=>x.id===qid);if(q){q.type=el.value;if(q.type==='mc'&&!(q.o||[]).length)q.o=['الخيار الأول','الخيار الثاني'];delete svLink[sid];save();render()}return}if(el.dataset.ctask){const[cid,tid]=el.dataset.ctask.split('|');const cm=DB.committees.find(x=>x.id===cid);if(cm){cm.tdone=cm.tdone||{};if(el.checked)cm.tdone[tid]=today();else delete cm.tdone[tid];audit(el.checked?'إنجاز مهمة لجنة':'إلغاء إنجاز مهمة لجنة','committees',{title:comName(cm)});save();const y=scrollY;render();scrollTo(0,y)}return}if(el.dataset.allp)$$(`[data-p="${el.dataset.allp}"]`).forEach(x=>x.checked=el.checked);
  if(el.id==='s_rt'){DB.settings.remindTime=el.value||'07:30';save()}if(el.id==='s_mute'){DB.settings.mute=el.checked;save()}if(el.id==='s_bk'){DB.settings.backupEvery=+el.value;if(+el.value)DB.settings.backupSnooze='';save();bkHide();bkCheck();render()}if(el.id==='s_hj'){DB.settings.hijri=el.checked;save();chrome()}});
 document.addEventListener('click',e=>{const s=e.target.closest('[data-rv]');if(!s)return;const[d,i]=s.dataset.rv.split('|');DB.review[d]=DB.review[d]||{};const cur=DB.review[d][i]||{};
  DB.review[d][i]={...cur,s:cur.s===s.dataset.s?'':s.dataset.s};DB.review._date=today();audit('تقييم مؤشر','review',{title:d});save();
