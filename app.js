@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.17.2';
+const APP_VERSION='1.17.3';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -681,7 +681,7 @@ async function gmPNG(){const st=gmState(),eb=st.list.filter(b=>b.earned);if(!eb.
  g.direction='rtl';g.textAlign='center';g.fillStyle=C.ink;g.font='700 34px Tajawal, sans-serif';g.fillText(DB.settings.school||'',W/2,160);g.fillStyle=G?C.b:C.ac;g.font='800 80px Tajawal, sans-serif';g.fillText('🏆 أوسمة الإنجاز',W/2,270);
  g.fillStyle=C.ink;g.font='700 40px Tajawal, sans-serif';g.fillText(`المستوى: ${st.lvl} — ${st.pts} نقطة`,W/2,350);g.font='400 28px Tajawal, sans-serif';g.fillStyle='#6b7280';g.fillText(hjFmt(today())+' — '+eb.length+' وساماً',W/2,400);
  eb.forEach((b,i)=>{const col=i%cols,row=Math.floor(i/cols),x=W-90-cw/2-col*cw-(W-180-cols*cw)/2,y=470+row*ch;g.fillStyle=G?'#fdf0f6':'#f8f3e3';g.beginPath();g.arc(x,y+70,64,0,7);g.fill();g.strokeStyle=C.ac;g.lineWidth=5;g.stroke();g.font='64px sans-serif';g.fillStyle='#000';g.fillText(b.ic,x,y+92);g.fillStyle=C.ink;g.font='700 26px Tajawal, sans-serif';honWrap(g,b.n,cw-30).slice(0,2).forEach((l,j)=>g.fillText(l,x,y+175+j*32))});
- g.fillStyle='#c00000';g.font='700 22px Tajawal, sans-serif';g.fillText(CREDIT,W/2,H-100);g.fillStyle='#374151';g.font='600 20px Tajawal, sans-serif';g.fillText(CONTACT,W/2,H-70);
+ 
  const url=c.toDataURL('image/png'),f=$('#dlgForm'),fn=`أوسمة-الإنجاز-${today()}.png`;
  f.innerHTML=`<div class="dlg-h"><span>🏆 صورة أوسمة الإنجاز</span><button type="button" class="iconbtn" data-x aria-label="إغلاق">✕</button></div><div class="dlg-b" style="grid-template-columns:1fr"><img src="${url}" alt="صورة أوسمة الإنجاز" style="width:100%;max-width:420px;margin:auto;border-radius:12px;box-shadow:0 4px 16px #0003"></div><div class="dlg-f"><a class="btn gold" href="${url}" download="${fn}">⬇️ تنزيل الصورة PNG</a><button type="button" class="btn ghost" data-x>إغلاق</button></div>`;
  f.onsubmit=e=>e.preventDefault();$$('[data-x]',f).forEach(b=>b.onclick=()=>$('#dlg').close());if(!$('#dlg').open)$('#dlg').showModal()}
@@ -820,8 +820,8 @@ async function honCanvas(x){const W=1080,H=1350,c=document.createElement('canvas
  g.fillStyle=C.bg1;g.font='700 44px Tajawal, sans-serif';g.fillText(fem(x.cat||''),W/2,y+40);
  g.fillStyle=C.ink;{let fs=76,nl;for(fs of [76,66,58,50]){g.font='800 '+fs+'px Tajawal, sans-serif';nl=honWrap(g,x.name||'',W-260);if(nl.length<=2)break}if(nl.length>2){nl=nl.slice(0,2);nl[1]+=' …'}const lh=Math.round(fs*1.13);nl.forEach((l,i)=>g.fillText(l,W/2,y+140+i*lh));y+=140+lh*nl.length-(86-Math.min(86,lh))*0}
  g.font='400 32px Tajawal, sans-serif';g.fillStyle='#374151';{const rl=honWrap(g,x.reason||'',W-300),mx=Math.max(1,Math.min(5,Math.floor((H-260-(y+30))/48)+1));const sh=rl.slice(0,mx);if(rl.length>mx)sh[mx-1]=sh[mx-1].replace(/\s*\S*$/,'')+' …';sh.forEach((l,i)=>g.fillText(l,W/2,y+30+i*48))}
- g.fillStyle=C.ink;g.font='700 30px Tajawal, sans-serif';g.fillText(fem((s.principal?'قائد المدرسة: '+s.principal:'إدارة المدرسة')),W/2,H-180);
- g.fillStyle='#c00000';g.font='700 22px Tajawal, sans-serif';g.fillText(CREDIT,W/2,H-128);g.fillStyle='#374151';g.font='600 20px Tajawal, sans-serif';g.fillText(CONTACT,W/2,H-98);return c}
+ g.fillStyle=C.ink;g.font='700 30px Tajawal, sans-serif';g.fillText(fem((s.principal?'قائد المدرسة: '+s.principal:'إدارة المدرسة')),W/2,H-150);
+ return c}
 async function honShow(id){const x=DB.honors.find(y=>y.id===id);if(!x)return;gmS().hc++;save();const c=await honCanvas(x);const url=c.toDataURL('image/png');const f=$('#dlgForm');const fn=`لوحة-الشرف-${(x.date||'').slice(0,7)}-${String(x.name||'').replace(/[\\/:*?"<>|\s]+/g,'-')}.png`;
  f.innerHTML=`<div class="dlg-h"><span>🏅 بطاقة لوحة الشرف</span><button type="button" class="iconbtn" data-x aria-label="إغلاق">✕</button></div><div class="dlg-b" style="grid-template-columns:1fr"><img src="${url}" alt="بطاقة لوحة الشرف" style="width:100%;max-width:420px;margin:auto;border-radius:12px;box-shadow:0 4px 16px #0003"></div><div class="dlg-f"><a class="btn gold" href="${url}" download="${esc(fn)}">⬇️ تنزيل الصورة PNG</a><button type="button" class="btn ghost" data-x>إغلاق</button></div>`;
  f.onsubmit=e=>e.preventDefault();$$('[data-x]',f).forEach(b=>b.onclick=()=>$('#dlg').close());if(!$('#dlg').open)$('#dlg').showModal()}
