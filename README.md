@@ -6,3 +6,8 @@
 الرابط: https://alotibi21-spec.github.io/school-leader-dashboard/
 
 الخط: Tajawal (SIL OFL 1.1).
+
+## حقوق النشر — Copyright
+
+© 2026 / 1448هـ عبدالله خالد العتيبي (Abdullah Khalid Alotaibi). جميع الحقوق محفوظة — All Rights Reserved.
+يُسمح للمدارس باستخدام التطبيق المنشور، ويُمنع النسخ أو التعديل أو إعادة النشر أو الاستخدام التجاري للكود أو التصميم دون إذن كتابي مسبق. التفاصيل في ملف [LICENSE](LICENSE).

@@ -1,3 +1,4 @@
+/*! لوحة قيادة المدرسة — © 2026 / 1448هـ عبدالله خالد العتيبي (Abdullah Khalid Alotaibi). جميع الحقوق محفوظة — All Rights Reserved. انظر ملف LICENSE. */
 /* Respondent page: survey is encoded in the URL hash (never sent to any server). The answer is returned as a code the respondent sends back (WhatsApp/copy). */
 (function(){'use strict';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

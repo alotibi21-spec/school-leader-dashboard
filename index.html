@@ -1,4 +1,8 @@
 <!doctype html>
+<!--
+  لوحة قيادة المدرسة — © 2026 / 1448هـ عبدالله خالد العتيبي (Abdullah Khalid Alotaibi). جميع الحقوق محفوظة — All Rights Reserved.
+  يُمنع النسخ أو التعديل أو إعادة النشر أو الاستخدام التجاري للكود أو التصميم دون إذن كتابي مسبق. انظر ملف LICENSE.
+-->
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
@@ -24,6 +28,7 @@
   <div class="search"><input id="q" type="search" placeholder="بحث في كل السجلات… ( / )" aria-label="بحث"></div>
   <span id="saveInd" class="save" title="حالة الحفظ">✓ محفوظ</span>
   <span id="netInd" class="net"></span>
+  <a class="iconbtn emgbtn" id="emgBtn" href="#emg" aria-label="وضع الطوارئ" title="وضع الطوارئ">🚨</a>
   <button class="iconbtn bell" id="bellBtn" aria-label="التنبيهات" aria-haspopup="true">🔔<span id="bellBadge" class="badge" hidden></span></button>
   <button class="iconbtn" id="themeBtn" aria-label="تبديل الوضع الليلي/النهاري">🌙</button>
 </header>
@@ -42,6 +47,12 @@
   <a href="#meet" data-v="meet">🎙️ وضع الاجتماع</a>
   <a href="#badges" data-v="badges">🏆 أوسمة الإنجاز</a>
   <a href="#journey" data-v="journey">🛤️ رحلة التميز</a>
+  <a href="#decide" data-v="decide">🧭 مساعد القرار</a>
+  <a href="#heat" data-v="heat">🌡️ الخريطة الحرارية</a>
+  <a href="#portfolio" data-v="portfolio">📚 ملف إنجاز المدرسة</a>
+  <a href="#vrep" data-v="vrep">🗣️ التقرير الصوتي</a>
+  <a href="#cmp" data-v="cmp">📈 مقارنة مع الذات</a>
+  <a href="#emg" data-v="emg" class="navemg">🚨 وضع الطوارئ</a>
   <div class="sep">السجلات</div>
   <a href="#attendance" data-v="attendance">🧑‍🎓 حضور الطلاب</a>
   <a href="#visits" data-v="visits">🏫 الزيارات الصفية</a>
@@ -83,6 +94,7 @@
 <main id="main" tabindex="-1"></main>
 </div>
 <footer class="credit">تصميم: عضو الفريق التنفيذي عبدالله خالد العتيبي – قطاع السر</footer>
+<div class="copyline">© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن</div>
 <div id="printArea" class="print-area"></div>
 <dialog id="dlg"><form id="dlgForm" method="dialog" novalidate></form></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
