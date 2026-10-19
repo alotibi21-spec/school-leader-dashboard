@@ -356,3 +356,4 @@ dialog.mmode{width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;
 
 .credit .contact{margin-top:4px;font-weight:600}.credit .contact a{color:var(--ink,#1f2937);text-decoration:none;display:inline-flex;align-items:center;gap:6px}[data-theme=dark] .credit .contact a{color:#e5e7eb}.waic{vertical-align:middle;flex:none}
 .prot .protrow{margin:8px 0}.pbar{height:10px;border-radius:6px;background:var(--line,#e5e7eb);overflow:hidden;margin-top:6px}.pbar i{display:block;height:100%;background:#16a34a}.pbar i.hi{background:#c00000}.chip.ok{background:#dcfce7;color:#166534}.chip.warn{background:#fef3c7;color:#92400e}.instc{position:relative}.instx{position:absolute;inset-inline-end:8px;top:8px}
+footer.credit[hidden]{display:none!important}
