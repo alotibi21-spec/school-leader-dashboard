@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.16.1';
+const APP_VERSION='1.17.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -398,7 +398,7 @@ function evPrintAll(id){const rows=id?DB.evals.filter(x=>x.id===id):evSorted();c
 const dDiff=(a,b)=>Math.round((Date.parse(a)-Date.parse(b))/864e5);
 function bkHide(){const el=$('#bkRem');if(el)el.remove()}
 function bkHasData(){return COLS.some(c=>DB[c].some(x=>!x.sample))||FILES.length>0}
-function bkDue(){const s=DB.settings,ev=+s.backupEvery;if(!ev||!s.setupDone||!bkHasData())return false;const t=today();
+function bkDue(){const s=DB.settings,ev=+s.backupEvery;if(s.lastAutoBk&&dDiff(today(),String(s.lastAutoBk).slice(0,10))<Math.max(8,ev||8))return false;if(!ev||!s.setupDone||!bkHasData())return false;const t=today();
  if(!s.lastBackup&&!s.bkSince){s.bkSince=t;save();return false}
  if(s.backupSnooze&&t<s.backupSnooze)return false;return dDiff(t,s.lastBackup||s.bkSince)>=ev}
 function bkCheck(){try{if(document.querySelector('dialog[open]')||!bkDue()){if(document.querySelector('dialog[open]'))bkHide();return}if($('#bkRem'))return;
@@ -891,7 +891,7 @@ function mmSave(){if(!MM.title.trim()){alert('اكتب عنوان الاجتما
  setTimeout(()=>{if(confirm('تم الحفظ. طباعة المحضر الآن؟'))printHTML(mmMinutes(c,rec))},300)}
 function mmMinutes(c,r){return printHead('محضر اجتماع',esc(r.title)+' — '+fmtPlain(r.date))+`<section><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse">${[['السجل',c==='exmeet'?'اجتماعات الاختبارات — '+(r.area||''):(r.committee?'لجنة: '+r.committee:'الاجتماعات والمحاضر')],['التاريخ',fmtPlain(r.date)],['الحضور',r.attendees],['المحضر',r.minutes],['القرارات والتوصيات',r.decisions]].map(([k,v])=>`<tr><th style="width:22%;text-align:right">${k}</th><td style="white-space:pre-line">${esc(v||'—')}</td></tr>`).join('')}</table></section>`}
 
-function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true,stages:[],gender:'',supervisor:'',supervisorMobile:'',setupDone:false,backupEvery:14,lastBackup:'',backupSnooze:'',bkSince:'',morning:true},gm:{},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),tplMerged:TPL_V2.map(t=>t.period+'|'+t.title),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
+function blank(){const d={app:'school-leader-dashboard',schema:1,settings:{school:'',principal:'',region:'',year:'',logo:'',remindTime:'07:30',mute:false,theme:'',hijri:true,stages:[],gender:'',supervisor:'',supervisorMobile:'',setupDone:false,backupEvery:14,lastBackup:'',backupSnooze:'',bkSince:'',morning:true,autoBk:'daily',lastAutoBk:'',lastAutoHow:''},gm:{},templates:DEFAULT_TEMPLATES.map(t=>({id:uid(),...t})),tplMerged:TPL_V2.map(t=>t.period+'|'+t.title),review:{},audit:[],notified:{}};COLS.forEach(c=>d[c]=[]);return d}
 let DB;
 function load(){try{const r=localStorage.getItem(KEY);DB=r?normalize(JSON.parse(r)):blank()}catch(e){console.warn(e);DB=blank()}}
 function normalize(d){const b=blank();if(!d||typeof d!=='object')return b;
@@ -1171,6 +1171,7 @@ ${stageGenderFields(s)}
  <label class="row"><input type="checkbox" id="s_hj" ${s.hijri?'checked':''}> عرض التاريخ الهجري (أم القرى) بجانب الميلادي</label>
  <div class="btns" style="margin:8px 0"><button class="btn ghost" data-act="notif">تفعيل إشعارات المتصفح</button><button class="btn ghost" data-act="chime">تجربة الصوت</button></div>
  <p class="small muted">حالة الإشعارات: <b id="nstate">${'Notification' in window?({granted:'مفعّلة',denied:'مرفوضة (فعّلها من إعدادات المتصفح)',default:'غير مفعّلة'})[Notification.permission]:'غير مدعومة في هذا المتصفح'}</b>.<br>تنبيه: تعمل التذكيرات والإشعارات فقط أثناء فتح التطبيق/التبويب أو تشغيل التطبيق المثبّت؛ لا يوجد خادم لإرسال إشعارات والتطبيق مغلق.</p></div></div>
+ ${protCard()}
  <div class="grid two"><div class="card"><h3>النسخ الاحتياطي</h3><p class="small muted">البيانات محفوظة في هذا المتصفح على هذا الجهاز فقط (الحجم الحالي ≈ ${used} ك.ب). مسح بيانات المتصفح يحذفها — صدّر نسخة احتياطية بانتظام وانقلها بين الأجهزة بالاستيراد.</p>
  <p class="small" id="bkLast">آخر نسخة احتياطية: <b>${s.lastBackup?'<bdi dir="ltr">'+esc(s.lastBackup)+'</bdi> (منذ '+dDiff(today(),s.lastBackup)+' يوم)':'لم تُؤخذ نسخة بعد'}</b></p>
  <div class="fld" style="margin-bottom:10px"><label for="s_bk">تذكير النسخ الاحتياطي</label><select id="s_bk">${[[7,'كل 7 أيام'],[14,'كل 14 يوماً'],[30,'كل 30 يوماً'],[0,'إيقاف التذكير']].map(([v,l])=>`<option value="${v}" ${+s.backupEvery===v?'selected':''}>${l}</option>`).join('')}</select></div>
@@ -1204,7 +1205,8 @@ function render(){const v=view(),m=$('#main');
  if(!searchQ&&(v==='meetings'||v==='exmeet')){const b=m.querySelector('.head .btns');if(b)b.insertAdjacentHTML('afterbegin','<button class="btn ghost" data-act="mmode" data-id="g">🎙️ وضع الاجتماع</button>')}
  if(window._tkReady&&tkLastG!==null&&tkLastG!==tkGender())renderTicker();
  if(!searchQ&&v==='dashboard'){const h=mcCard();if(h)m.insertAdjacentHTML('afterbegin',h)}
- m.innerHTML=fem(m.innerHTML);chrome();if(!searchQ){gmCheck();if(v==='journey')jCheck()}}
+ if(!searchQ&&v==='dashboard'){const h=instCard();if(h){const hd=m.querySelector('.head');hd?hd.insertAdjacentHTML('afterend',h):m.insertAdjacentHTML('afterbegin',h)}}
+ m.innerHTML=fem(m.innerHTML);chrome();if(v==='settings')protFill();if(!searchQ){gmCheck();if(v==='journey')jCheck()}}
 let NAV0;function chrome(){const s=DB.settings;document.documentElement.dataset.g=s.gender==='بنات'?'girls':'boys';applyThemeColor();$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';NAV0=NAV0||$('#nav').innerHTML;const nv=fem(NAV0);if($('#nav').dataset.g!==String(s.gender)){$('#nav').innerHTML=nv;$('#nav').dataset.g=s.gender}$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view()));document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
  const lg=$('#topLogo');if(s.logo){lg.src=s.logo;lg.hidden=false}else lg.hidden=true;
  $('#sampleBar').hidden=!hasSample();const o=DB.tasks.filter(x=>isOver('tasks',x)).length;$('#navOver').hidden=!o;$('#navOver').textContent=o;const nc=navCounts();$$('#nav a').forEach(a=>{let sp=a.querySelector('.navf');const n=nc[a.dataset.v];if(n==null)return;if(!sp){sp=document.createElement('span');sp.className='navf';sp.title='عدد الملفات المرفوعة';a.appendChild(sp)}sp.textContent=n?'📎'+n:'';sp.hidden=!n});
@@ -1299,8 +1301,9 @@ function clearSample(){let n=0;COLS.forEach(c=>{const b=DB[c].length;DB[c]=DB[c]
 
 /* ---------- Import with integrity checks ---------- */
 async function sha(s){if(!crypto.subtle)return'';const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function exportJSON(){const tf=FILES.reduce((a,f)=>a+f.size,0);if(tf>40*1048576&&!confirm(`حجم الملفات المرفقة كبير (${fsize(tf)})، فستكون النسخة الاحتياطية كبيرة (≈ ${fsize(tf*1.37)}) وقد يستغرق تنزيلها وقتاً. متابعة؟`))return;const data={...DB};const body=JSON.stringify(data);const files=await filesForExport();const wrap={format:'school-leader-dashboard-backup',version:APP_VERSION,exported:new Date().toISOString(),sha256:await sha(body),data,files,filesSha256:await sha(JSON.stringify(files))};
- download(`نسخة-احتياطية-لوحة-القيادة-${today()}.json`,JSON.stringify(wrap),'application/json');DB.settings.lastBackup=today();DB.settings.backupSnooze='';save();bkHide();if(view()==='settings')render()}
+async function backupText(){const data={...DB};const body=JSON.stringify(data);const files=await filesForExport();return JSON.stringify({format:'school-leader-dashboard-backup',version:APP_VERSION,exported:new Date().toISOString(),sha256:await sha(body),data,files,filesSha256:await sha(JSON.stringify(files))})}
+async function exportJSON(){const tf=FILES.reduce((a,f)=>a+f.size,0);if(tf>40*1048576&&!confirm(`حجم الملفات المرفقة كبير (${fsize(tf)})، فستكون النسخة الاحتياطية كبيرة (≈ ${fsize(tf*1.37)}) وقد يستغرق تنزيلها وقتاً. متابعة؟`))return;
+ download(`نسخة-احتياطية-لوحة-القيادة-${today()}.json`,await backupText(),'application/json');DB.settings.lastBackup=today();DB.settings.backupSnooze='';save();bkHide();if(view()==='settings')render()}
 async function importJSON(file){try{if(file.size>400e6)throw new Error('الملف كبير جداً');const txt=await file.text();let w;try{w=JSON.parse(txt)}catch(e){throw new Error('الملف ليس JSON صالحاً')}
  let data=w;if(w&&w.format==='school-leader-dashboard-backup'){data=w.data;if(w.sha256&&crypto.subtle){const h=await sha(JSON.stringify(data));const hf=w.files&&w.filesSha256?await sha(JSON.stringify(w.files)):w.filesSha256;if((h!==w.sha256||hf!==w.filesSha256)&&!confirm('تحذير: بصمة الملف لا تطابق محتواه (ربما عُدّل أو تلف). المتابعة؟'))return}}
  if(!data||data.app!=='school-leader-dashboard')throw new Error('الملف ليس نسخة احتياطية من هذا التطبيق');
@@ -1580,7 +1583,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   sample:loadSample,clearSample,wipe:()=>{if(prompt('لمسح كل البيانات نهائياً اكتب: مسح')!=='مسح')return;DB=blank();restoreFiles([]);save();render();toast('مُسحت البيانات')},
   notif:async()=>{if(!('Notification' in window)){toast('المتصفح لا يدعم الإشعارات');return}const p=await Notification.requestPermission();toast(p==='granted'?'فُعّلت الإشعارات':'لم تُفعّل الإشعارات');render()},
   chime:()=>{const m=DB.settings.mute;DB.settings.mute=false;chime();DB.settings.mute=m},bellclose:()=>$('#bellPanel').hidden=true,
-  install:async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;chrome()}};
+  protask:async()=>{const p=await protPersist(true);toast(p?'✅ البيانات محمية من الحذف التلقائي':p===null?'المتصفح لا يدعم التخزين الدائم':'لم يوافق المتصفح بعد — ثبّت التطبيق ثم أعد المحاولة');protFill()},abknow:()=>abkRun(true),abkpick:()=>abkPick(),abkgrant:()=>abkRegrant(),abkclear:async()=>{await metaSet('bkDir',null);toast('أُلغي مجلد النسخ؛ ستُنزَّل النسخ إلى التنزيلات');protFill()},instx:()=>{localStorage.setItem('sld_inst_x','1');const c=$('#instCard');if(c)c.remove()},
+  install:async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;chrome();render()}};
  acts[a]&&acts[a]()});
 document.addEventListener('input',e=>{const el=e.target;if(el.id==='tpdQ'){tpdQ=el.value;clearTimeout(window._tq);window._tq=setTimeout(()=>{render();const i=$('#tpdQ');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},250);return}if(el.dataset&&el.dataset.svq){const [sid,qid,k]=el.dataset.svq.split('|');const sv=DB.surveys.find(x=>x.id===sid);const q=sv&&svQs(sv).find(x=>x.id===qid);if(q&&k!=='type'){if(k==='o')q.o=el.value.split('\n').map(x=>x.trim()).filter(Boolean);else q.t=el.value.slice(0,300);delete svLink[sid];const sh=$('#svShare');if(sh)sh.innerHTML='';save()}return}
  if(el.dataset.f){const c=view();flt[c][el.dataset.f]=el.value;clearTimeout(el._t);el._t=setTimeout(()=>{const pos=el.selectionStart;render();const n=$(`[data-f="${el.dataset.f}"]`);if(n){n.focus();if(n.type==='search'&&pos!=null)n.setSelectionRange(pos,pos)}},el.type==='search'?250:0)}
@@ -1593,7 +1597,7 @@ document.addEventListener('change',e=>{const el=e.target;if(el.id==='decD'){flt.
  if(el.dataset&&el.dataset.emgc){const c=emgS().contacts.find(x=>x.id===el.dataset.emgc);if(c){c[el.dataset.k]=el.value.trim();save();render()}return}if(el.dataset&&el.dataset.emg){emgS()[el.dataset.emg]=el.value;save();return}
  if(el.dataset&&el.dataset.emgk){const x=emgS().check.find(y=>y.id===el.dataset.emgk);if(x){x.d=el.checked;save();render()}return}if(el.dataset&&el.dataset.emgkt){const x=emgS().check.find(y=>y.id===el.dataset.emgkt);if(x){x.t=el.value;save()}return}
  if(el.matches&&el.matches('[data-jtarget]')){const v=el.value.trim();gmS().target=v===''?'':Math.max(0,Math.min(100,+v));save();render();return}if(el.matches&&el.matches('[data-wsday]')){flt.wsDay=el.value||today();render();return}if(el.matches&&el.matches('[data-evsel]')){flt.evsel=el.value;render();return}if(el.dataset&&el.dataset.svq&&el.dataset.svq.endsWith('|type')){const [sid,qid]=el.dataset.svq.split('|');const sv=DB.surveys.find(x=>x.id===sid);const q=sv&&svQs(sv).find(x=>x.id===qid);if(q){q.type=el.value;if(q.type==='mc'&&!(q.o||[]).length)q.o=['الخيار الأول','الخيار الثاني'];delete svLink[sid];save();render()}return}if(el.dataset.ctask){const[cid,tid]=el.dataset.ctask.split('|');const cm=DB.committees.find(x=>x.id===cid);if(cm){cm.tdone=cm.tdone||{};if(el.checked)cm.tdone[tid]=today();else delete cm.tdone[tid];audit(el.checked?'إنجاز مهمة لجنة':'إلغاء إنجاز مهمة لجنة','committees',{title:comName(cm)});save();const y=scrollY;render();scrollTo(0,y)}return}if(el.dataset.allp)$$(`[data-p="${el.dataset.allp}"]`).forEach(x=>x.checked=el.checked);
- if(el.id==='s_rt'){DB.settings.remindTime=el.value||'07:30';save()}if(el.id==='s_mute'){DB.settings.mute=el.checked;save()}if(el.id==='s_morning'){DB.settings.morning=el.checked;save()}if(el.id==='s_bk'){DB.settings.backupEvery=+el.value;if(+el.value)DB.settings.backupSnooze='';save();bkHide();bkCheck();render()}if(el.id==='s_hj'){DB.settings.hijri=el.checked;save();chrome()}});
+ if(el.id==='s_abk'){DB.settings.autoBk=el.value;save();protFill();toast(el.value==='off'?'أُوقف النسخ التلقائي':'فُعّل النسخ التلقائي')}if(el.id==='s_rt'){DB.settings.remindTime=el.value||'07:30';save()}if(el.id==='s_mute'){DB.settings.mute=el.checked;save()}if(el.id==='s_morning'){DB.settings.morning=el.checked;save()}if(el.id==='s_bk'){DB.settings.backupEvery=+el.value;if(+el.value)DB.settings.backupSnooze='';save();bkHide();bkCheck();render()}if(el.id==='s_hj'){DB.settings.hijri=el.checked;save();chrome()}});
 document.addEventListener('click',e=>{const s=e.target.closest('[data-rv]');if(!s)return;const[d,i]=s.dataset.rv.split('|');DB.review[d]=DB.review[d]||{};const cur=DB.review[d][i]||{};
  DB.review[d][i]={...cur,s:cur.s===s.dataset.s?'':s.dataset.s};DB.review._date=today();audit('تقييم مؤشر','review',{title:d});save();
  const y=window.scrollY;render();window.scrollTo(0,y)});
@@ -1623,7 +1627,48 @@ $('#menuBtn').onclick=()=>{const o=$('#nav').classList.toggle('open');$('#menuBt
 window.addEventListener('hashchange',()=>{searchQ='';$('#q').value='';render();$('#main').focus({preventScroll:true});window.scrollTo(0,0)});
 const net=()=>{$('#netInd').textContent=navigator.onLine?'🟢 متصل':'🟠 دون اتصال'};addEventListener('online',net);addEventListener('offline',net);
 window.addEventListener('storage',e=>{if(e.key===KEY){load();render()}});
-let deferredInstall=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;chrome()});
+let deferredInstall=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;chrome();if(view()==='dashboard'&&$('#instCard'))render()});
+
+/* ---------- v1.17 Data protection: persistent storage, meter, auto backup, install hint ---------- */
+let PROT={persisted:null,est:null};
+async function protPersist(ask){try{if(!navigator.storage||!navigator.storage.persist)return PROT.persisted=null;let p=await navigator.storage.persisted();if(!p&&ask!==false)p=await navigator.storage.persist();PROT.persisted=p;return p}catch(e){return PROT.persisted=null}}
+async function protEst(){try{if(navigator.storage&&navigator.storage.estimate)PROT.est=await navigator.storage.estimate()}catch(e){}return PROT.est}
+function hSize(b){b=+b||0;return b>=1073741824?(b/1073741824).toFixed(2)+' ج.ب':b>=1048576?(b/1048576).toFixed(1)+' م.ب':(b/1024).toFixed(0)+' ك.ب'}
+function metaDb(){return new Promise((res,rej)=>{if(!('indexedDB' in window))return rej(new Error('no idb'));const r=indexedDB.open('sld-meta',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function metaGet(k){try{const d=await metaDb();return await new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch(e){return null}}
+async function metaSet(k,v){try{const d=await metaDb();await new Promise(r=>{const t=d.transaction('kv','readwrite');v==null?t.objectStore('kv').delete(k):t.objectStore('kv').put(v,k);t.oncomplete=r;t.onerror=r})}catch(e){}}
+const FSA=()=>typeof window.showDirectoryPicker==='function';
+const ABK_PRE='نسخة-تلقائية-لوحة-القيادة-';
+function abkMode(){const m=DB.settings.autoBk;return m==null||m===''?'daily':m}
+function abkDue(){const m=abkMode(),s=DB.settings;if(m==='off'||!s.setupDone||!bkHasData())return false;if(!s.lastAutoBk)return true;const d=dDiff(today(),String(s.lastAutoBk).slice(0,10));return m==='weekly'?d>=7:d>=1}
+async function abkWriteDir(h,txt){const name=ABK_PRE+today()+'.json';const fh=await h.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(new Blob([txt],{type:'application/json'}));await w.close();
+ const ns=[];for await(const [n,e] of h.entries())if(e.kind==='file'&&n.startsWith(ABK_PRE)&&n.endsWith('.json'))ns.push(n);ns.sort();for(const n of ns.slice(0,Math.max(0,ns.length-5)))await h.removeEntry(n).catch(()=>{});return name}
+async function abkRun(force){if(!force&&!abkDue())return false;try{const txt=await backupText();let how='';const h=FSA()?await metaGet('bkDir'):null;
+ if(h&&(await h.queryPermission({mode:'readwrite'}))==='granted'){await abkWriteDir(h,txt);how='المجلد «'+h.name+'»'}
+ else{download(`${ABK_PRE}${today()}.json`,txt,'application/json');how='التنزيلات'}
+ const s=DB.settings;s.lastAutoBk=new Date().toISOString();s.lastAutoHow=how;s.lastBackup=today();s.backupSnooze='';save();bkHide();toast('💾 حُفظت نسخة احتياطية تلقائية في '+how);if(view()==='settings')protFill();return true}
+ catch(e){toast('تعذّر النسخ الاحتياطي التلقائي — صدّر نسخة يدوياً');return false}}
+async function abkPick(){if(!FSA())return;try{const h=await window.showDirectoryPicker({mode:'readwrite',id:'sld-backup'});if((await h.requestPermission({mode:'readwrite'}))!=='granted')return;await metaSet('bkDir',h);await abkRun(true);protFill()}catch(e){if(e&&e.name!=='AbortError')toast('تعذّر اختيار المجلد')}}
+async function abkRegrant(){const h=await metaGet('bkDir');if(!h)return abkPick();try{if((await h.requestPermission({mode:'readwrite'}))==='granted'){await abkRun(true);protFill()}}catch(e){}}
+function protCard(){const s=DB.settings,m=abkMode();return `<div class="card prot" id="protCard"><h3>🛡️ حماية البيانات</h3>
+ <div class="protrow"><b>التخزين الدائم:</b> <span id="protSt" class="chip">…</span> <button class="btn sm ghost" data-act="protask">طلب الحماية مجدداً</button></div>
+ <div class="protrow"><b>مساحة التخزين:</b> <span id="protUse">…</span><div class="pbar" aria-hidden="true"><i id="protBar" style="width:0"></i></div><div id="protWarn" class="banner red small" hidden>⚠️ المساحة المستخدمة تجاوزت 80% — صدّر نسخة احتياطية وقلّل حجم المرفقات.</div></div>
+ <div class="fld"><label for="s_abk">النسخ الاحتياطي التلقائي إلى ملف</label><select id="s_abk">${[['off','إيقاف'],['daily','يومياً (عند أول فتح في اليوم)'],['weekly','أسبوعياً']].map(([v,l])=>`<option value="${v}" ${m===v?'selected':''}>${l}</option>`).join('')}</select></div>
+ <div class="protrow small" id="protDir">${FSA()?'…':'متصفحك لا يدعم الحفظ في مجلد؛ ستُنزَّل النسخة التلقائية إلى «التنزيلات» باسم مؤرَّخ.'}</div>
+ <p class="small">آخر نسخة تلقائية: <b id="protLast">${s.lastAutoBk?'<bdi dir="ltr">'+esc(new Date(s.lastAutoBk).toLocaleString('en-GB',{hour12:false}).slice(0,17))+'</bdi> — '+esc(s.lastAutoHow||''):'لم تُؤخذ بعد'}</b></p>
+ <div class="btns"><button class="btn gold sm" data-act="abknow">💾 نسخة تلقائية الآن</button></div>
+ ${howto('حماية البيانات',['«التخزين الدائم» يطلب من المتصفح عدم حذف بيانات اللوحة تلقائياً عند امتلاء الجهاز؛ إن ظهرت «غير محمية» فاضغط «طلب الحماية مجدداً» (تثبيت التطبيق على الشاشة الرئيسية يزيد فرصة القبول).','«مساحة التخزين» تعرض ما تستخدمه اللوحة ومرفقاتها مقابل المتاح، ويظهر تنبيه عند تجاوز 80%.','«النسخ الاحتياطي التلقائي»: يومياً أو أسبوعياً تُحفظ نسخة كاملة (مع ملفات الشواهد) بنفس صيغة «استيراد نسخة احتياطية».','في Chrome على الحاسب أو أندرويد اختر مجلداً مرة واحدة فتُكتب النسخ فيه بصمت ويُحتفظ بآخر 5 نسخ فقط؛ وفي غيره تُنزَّل النسخة إلى «التنزيلات» مرة في كل فترة.','عند نجاح النسخ التلقائي لا يظهر تذكير النسخ الاحتياطي.','للاسترجاع: الإعدادات ← «استيراد نسخة احتياطية» واختر أحدث ملف.'])}</div>`}
+async function protFill(){if(!$('#protCard'))return;const p=await protPersist(false);const st=$('#protSt');if(st){st.textContent=p===null?'غير مدعوم في هذا المتصفح':p?'✅ محمية من الحذف التلقائي':'⚠️ غير محمية';st.className='chip '+(p?'ok':'warn')}
+ const e=await protEst();if(e&&e.quota){const pc=Math.min(100,(e.usage||0)/e.quota*100);$('#protUse').innerHTML=`<bdi>${hSize(e.usage)}</bdi> مستخدمة من <bdi>${hSize(e.quota)}</bdi> متاحة (<bdi>${pc.toFixed(pc<1?2:0)}%</bdi>)`;$('#protBar').style.width=Math.max(pc,1)+'%';$('#protBar').className=pc>80?'hi':'';$('#protWarn').hidden=pc<=80}else if($('#protUse'))$('#protUse').textContent='غير متاح في هذا المتصفح';
+ if(FSA()){const h=await metaGet('bkDir'),d=$('#protDir');if(!d)return;let g='';try{g=h?await h.queryPermission({mode:'readwrite'}):''}catch(x){}
+  d.innerHTML=h?`📁 مجلد النسخ: <b>${esc(h.name)}</b> ${g==='granted'?'(مفعّل — يُحتفظ بآخر 5 نسخ)':'<span class="chip warn">يحتاج إذناً</span> <button class="btn sm ghost" data-act="abkgrant">منح الإذن</button>'} <button class="btn sm ghost" data-act="abkpick">تغيير المجلد</button> <button class="btn sm ghost" data-act="abkclear">إلغاء المجلد</button>`:`<button class="btn sm" data-act="abkpick">📁 اختيار مجلد للنسخ التلقائي</button> <span class="muted">(بدون مجلد تُنزَّل النسخة إلى «التنزيلات»)</span>`}}
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function instCard(){if(isStandalone()||localStorage.getItem('sld_inst_x'))return'';const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ return `<div class="card instc" id="instCard"><button class="iconbtn instx" data-act="instx" aria-label="إخفاء">✕</button><h3>📲 ثبّت اللوحة على الشاشة الرئيسية</h3><p class="small">التثبيت يجعل اللوحة تفتح كتطبيق مستقل ويقلّل احتمال فقدان البيانات عند تنظيف المتصفح.</p>
+ ${deferredInstall?'<div class="btns"><button class="btn gold" data-act="install">تثبيت الآن</button></div>':''}
+ <div class="grid two small"><div${ios?' style="order:2"':''}><b>أندرويد (Chrome):</b><ol style="list-style:decimal;padding-inline-start:20px"><li>اضغط ⋮ أعلى المتصفح.</li><li>اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».</li><li>أكّد «تثبيت».</li></ol></div>
+ <div><b>آيفون (Safari):</b><ol style="list-style:decimal;padding-inline-start:20px"><li>اضغط زر المشاركة ⬆️ أسفل الشاشة.</li><li>اختر «إضافة إلى الشاشة الرئيسية».</li><li>اضغط «إضافة».</li></ol></div></div></div>`}
+setTimeout(()=>protPersist(true),1500);setTimeout(()=>abkRun(false),4000);
 
 /* ---------- Service worker + update banner ---------- */
 /* A modal <dialog> makes the page behind it inert, so mirror the update banner inside any open dialog */
