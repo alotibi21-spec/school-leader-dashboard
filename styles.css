@@ -358,3 +358,4 @@ dialog.mmode{width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;
 .prot .protrow{margin:8px 0}.pbar{height:10px;border-radius:6px;background:var(--line,#e5e7eb);overflow:hidden;margin-top:6px}.pbar i{display:block;height:100%;background:#16a34a}.pbar i.hi{background:#c00000}.chip.ok{background:#dcfce7;color:#166534}.chip.warn{background:#fef3c7;color:#92400e}.instc{position:relative}.instx{position:absolute;inset-inline-end:8px;top:8px}
 footer.credit[hidden]{display:none!important}
 footer.credit[hidden]+.copyline{margin-top:0;padding-top:10px;border-top:3px solid var(--gold);background:var(--card)}
+.shgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;margin-bottom:10px}.shbox{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}.shbox.sens{border-color:#f59e0b}
