@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.18.0';
+const APP_VERSION='1.19.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1189,12 +1189,30 @@ function searchView(q){const ql=q.toLowerCase();let out='',n=0;
  const bg=BADGES.filter(b=>(b[2]+' '+b[3]).toLowerCase().includes(ql));if(bg.length){n+=bg.length;out+=`<div class="card"><h3>أوسمة الإنجاز (${bg.length})</h3>${bg.map(b=>`<div class="row"><a href="#badges">${b[1]} ${esc(b[2])}</a> <span class="small muted">${esc(b[3])}</span></div>`).join('')}</div>`}
  return `<div class="head"><h2>نتائج البحث عن «${esc(q)}» (${n})</h2></div>${out||'<div class="card empty">لا توجد نتائج</div>'}`}
 
+
+/* ---------- الأدلة المرجعية ---------- */
+const GUIDES_DEF=[
+ {id:'g-org1442',t:'الدليل التنظيمي لمدارس التعليم العام (الأهداف والمهام)',ed:'إصدار ١٤٤٢هـ',circ:'تعميم معالي الوزير رقم ٤٣٠٠٠٠٢١٣٥١ وتاريخ ٠٤/٠١/١٤٤٣هـ',qr:'guides/g-org1442.png',u:'https://saudimoe-my.sharepoint.com/:b:/g/personal/ozuair4670_moe_gov_sa/IQB62x6hPCjqQ6NvR4x3VmJzAWpIYzI1LdCI3ZzxDErisxg?e=zdVKK5'},
+ {id:'g-proc1437',t:'الدليل الإجرائي لمدارس التعليم العام',ed:'إصدار ١٤٣٧هـ',circ:'التعميم الوزاري رقم ٣٧٣٠٥٤١٢٤ وتاريخ ١٧/٠٢/١٤٣٧هـ',qr:'guides/g-proc1437.png',u:'https://saudimoe-my.sharepoint.com/:b:/g/personal/ozuair4670_moe_gov_sa/IQCTVShpKCiXTpVt2WAzNP4EAStewTpyybReZchM9zK9IzQ?e=c0dFYp'}];
+const guExtra=()=>{try{const a=JSON.parse(localStorage.getItem('sld_guides')||'[]');return Array.isArray(a)?a:[]}catch(_){return []}};
+const guSave=a=>localStorage.setItem('sld_guides',JSON.stringify(a));
+function guQR(u){try{if(window.qrcode&&u){const q=qrcode(0,'M');q.addData(u);q.make();return `<div class="guqr">${q.createSvgTag({cellSize:3,margin:2,scalable:true})}</div>`}}catch(_){}return ''}
+const guQRI=g=>g.qr?`<div class="guqr"><img src="${g.qr}" alt="رمز QR — ${esc(g.t)}" loading="lazy"></div>`:guQR(g.u);
+function guCard(g,own){const ok=/^https?:\/\//.test(g.u||'');return `<div class="comcard gucard"><b>📘 ${esc(g.t)}</b>${g.ed?`<div class="small"><span class="pill">${esc(g.ed)}</span></div>`:''}${g.circ?`<div class="small muted" style="margin-top:6px">${esc(g.circ)}</div>`:''}
+ ${ok?guQRI(g):'<div class="small muted">⚠️ لا يوجد رابط</div>'}
+ <div class="btns" style="margin-top:8px">${ok?`<a class="btn gold sm" href="${esc(g.u)}" target="_blank" rel="noopener">📖 فتح الدليل</a>`:''}${own?`<button class="btn sm ghost" data-act="gudel" data-id="${esc(g.id)}">حذف</button>`:''}</div></div>`}
+function guidesView(){const ex=guExtra();return `<div class="head"><div><h2>📘 الأدلة المرجعية</h2><div class="muted small">الأدلة الرسمية المعتمدة لمدارس التعليم العام — وفق المذكرة الإلكترونية الموجهة للمدارس من إدارة الإدارة المدرسية (للتقيد بما ورد فيها والعمل بموجبه).</div></div><div class="btns"><a class="btn ghost" href="guides/memo-guides-1442-1437.jpg" download="مذكرة-الأدلة-التنظيمي-والإجرائي.jpg">⬇️ تنزيل صورة المذكرة الأصلية</a></div></div>
+ <div class="comgrid">${GUIDES_DEF.map(g=>guCard(g,false)).join('')}${ex.map(g=>guCard(g,true)).join('')}</div>
+ <div class="card"><h3>＋ إضافة دليل آخر</h3><div class="small muted">يُحفظ على هذا الجهاز فقط.</div>
+ <div class="gufrm"><input id="guT" placeholder="اسم الدليل"><input id="guE" placeholder="الإصدار (مثال: ١٤٤٥هـ)"><input id="guC" placeholder="رقم التعميم وتاريخه (اختياري)"><input id="guU" type="url" dir="ltr" placeholder="https://…"></div>
+ <div class="btns" style="margin-top:8px"><button class="btn gold" data-act="guadd">إضافة</button></div></div>`}
+
 /* ---------- Render ---------- */
 let searchQ='';
 function render(){const v=view(),m=$('#main');
  $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v||(v==='committee'&&a.dataset.v==='committees')||(['exam','exmeet','exact','exres'].includes(v)&&a.dataset.v==='exams')||(v==='survey'&&a.dataset.v==='surveys')));
  if(searchQ)m.innerHTML=searchView(searchQ);
- else if(v==='wsum')m.innerHTML=wsView();else if(v==='share')m.innerHTML=shareView();else if(v==='decide')m.innerHTML=decView();else if(v==='heat')m.innerHTML=heatView();else if(v==='portfolio')m.innerHTML=pfView();else if(v==='vrep')m.innerHTML=vrView();else if(v==='emg')m.innerHTML=emgView();else if(v==='cmp')m.innerHTML=cmpView();else if(v==='badges')m.innerHTML=badgesView();else if(v==='journey')m.innerHTML=journeyView();else if(v==='ready')m.innerHTML=readyView();else if(v==='cal')m.innerHTML=calView();else if(v==='meet')m.innerHTML=mmView();else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v]&&v!=='oplan')m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
+ else if(v==='wsum')m.innerHTML=wsView();else if(v==='share')m.innerHTML=shareView();else if(v==='decide')m.innerHTML=decView();else if(v==='heat')m.innerHTML=heatView();else if(v==='portfolio')m.innerHTML=pfView();else if(v==='vrep')m.innerHTML=vrView();else if(v==='emg')m.innerHTML=emgView();else if(v==='guides')m.innerHTML=guidesView();else if(v==='cmp')m.innerHTML=cmpView();else if(v==='badges')m.innerHTML=badgesView();else if(v==='journey')m.innerHTML=journeyView();else if(v==='ready')m.innerHTML=readyView();else if(v==='cal')m.innerHTML=calView();else if(v==='meet')m.innerHTML=mmView();else if(v==='dashboard')m.innerHTML=dashboard();else if(S[v]&&v!=='oplan')m.innerHTML=listView(v);else if(v==='templates')m.innerHTML=templatesView();
  else if(v==='review')m.innerHTML=reviewView();else if(v==='reports')m.innerHTML=reportsView();else if(v==='audit')m.innerHTML=auditView();else if(v==='oplan')m.innerHTML=oplanView();else if(v==='exams')m.innerHTML=examsView();else if(v==='survey')m.innerHTML=surveyView((location.hash.split('?')[1]||''));else if(v==='exam')m.innerHTML=examView((location.hash.split('?')[1]||''));else if(v==='committee')m.innerHTML=committeeView((location.hash.split('?')[1]||''));else if(v==='settings')m.innerHTML=settingsView();else if(v==='evidence')m.innerHTML=evidenceView();else m.innerHTML=dashboard();
  if(!searchQ&&v==='evals'){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=evView();[...w.children].reverse().forEach(ch=>hd.after(ch))}
  if(!searchQ&&(v==='impact'||v==='surveys')){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=(v==='impact'?impHowto()+impCards():svHowto()+svCards());[...w.children].reverse().forEach(ch=>hd.after(ch))}
@@ -1529,6 +1547,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   optpl:()=>download('نموذج-استيراد-الخطة-التشغيلية.csv','\ufeff'+[['المجال','الهدف','البرنامج/المبادرة','الإجراءات','المسؤول','تاريخ البداية','تاريخ النهاية','مؤشر الأداء','المستهدف','الحالة','نسبة الإنجاز']].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n','text/csv'),
   opdel:async()=>{if(!confirm('حذف هذا الإصدار من ملف الخطة؟'))return;await delFile(id);render()},
   vtask:()=>{openForm('tasks',null);voiceWire($('#dlgForm'));const t=$('#f_title');const b=t&&t.closest('.vw')?.querySelector('.micb');if(t&&b)voiceStart(t,b);else voiceNote()},
+  guadd:()=>{const t=$('#guT').value.trim(),u=$('#guU').value.trim();if(!t)return toast('اكتب اسم الدليل');if(u&&!/^https?:\/\//.test(u))return toast('الرابط يجب أن يبدأ بـ https://');const a=guExtra();a.push({id:'gu'+Date.now(),t,ed:$('#guE').value.trim(),circ:$('#guC').value.trim(),u});guSave(a);render();toast('تمت إضافة الدليل')},
+  gudel:()=>{if(!confirm('حذف هذا الدليل؟'))return;guSave(guExtra().filter(x=>x.id!==id));render()},
   tpdsave:()=>tpdSave(false),bksnooze:()=>{DB.settings.backupSnooze=addDays(today(),3);save();bkHide();toast('سيُذكّرك التطبيق بعد 3 أيام')},tpdsavevid:()=>tpdSave(true),
   evsend:()=>evSend(id),evprint:()=>printHTML(evPrintAll(id)),
   impprint:()=>printHTML(impPrint(id)),svprint:()=>printHTML(svPrint(id)),
