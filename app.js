@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.21.1';
+const APP_VERSION='1.22.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1896,14 +1896,32 @@ function weeksCard(){const s=wkState(),now=new Date();const hj=(()=>{try{return 
  let main='',badge='';if(s.hol){badge=`<span class="wkbadge hol">🌴 إجازة</span>`;main=`<div class="wkbig">${esc(s.hol.name)}</div><div class="wksub">تنتهي ${fmtDate(s.hol.to,true)}</div>`}
  if(s.term){if(!s.hol)badge=`<span class="wkbadge">📚 أيام دراسة</span>`;main+=`${s.k?`<div class="wkrange">الأسبوع ${WK_ORD[s.k-1]||s.k}: <bdi>${wkHm(s.ws)}</bdi> – <bdi>${wkHm(s.we)}</bdi> هـ</div>`:''}${s.exam&&!s.hol?`<div class="wkexam">📝 ${esc(s.exam.name)}</div>`:''}<div class="wkbig">${s.hol?'':`الأسبوع <b>${s.k}</b> من <b>${s.N}</b>`}</div>${s.hol?`<div class="wksub">${esc(s.term.name)} — الأسبوع ${s.k} من ${s.N}</div>`:''}
   <div class="wkbar" role="progressbar" aria-valuenow="${s.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="نسبة ما مضى من الفصل"><i style="width:${s.pct}%"></i></div>
-  <div class="wkstats"><div><b>${s.pct}%</b><span>مضى من الفصل</span></div><div><b>${s.wLeft}</b><span>أسابيع متبقية</span></div><div><b>${s.sdLeft}</b><span>يوماً دراسياً متبقياً</span></div><div><b>${s.cal}</b><span>يوماً حتى نهاية الفصل</span></div></div>`}
+  ${wkGauges(s)}<div class="wkstats"><div><b>${s.pct}%</b><span>مضى من الفصل</span></div><div><b>${s.wLeft}</b><span>أسابيع متبقية</span></div><div><b>${s.sdLeft}</b><span>يوماً دراسياً متبقياً</span></div><div><b>${s.cal}</b><span>يوماً حتى نهاية الفصل</span></div></div>`}
  else if(s.before){badge=`<span class="wkbadge hol">⏳ قبل بداية العام</span>`;main=`<div class="wkbig">العام الدراسي ${SCHOOL_CAL.year} لم يبدأ بعد</div>`}
  else if(s.after){badge=`<span class="wkbadge hol">☀️ انتهى العام</span>`;main=`<div class="wkbig">انتهى العام الدراسي ${SCHOOL_CAL.year}</div><div class="wksub">يُرجى تحديث بيانات التقويم للعام الجديد</div>`}
  else if(!s.hol){badge=`<span class="wkbadge hol">🌴 إجازة</span>`;main=`<div class="wkbig">إجازة بين الفصلين</div>`}
  const cd=s.next?`<div class="wkcd"><div class="small">⏱️ المتبقي على: <b>${esc(s.next.n)}</b> (${fmtDate(s.next.d,true)})</div><div class="wkcdg" id="wkCd" data-to="${s.next.d}">${['يوم','ساعة','دقيقة','ثانية'].map(u=>`<div><b>--</b><span>${u}</span></div>`).join('')}</div></div>`:'';
- return `<section class="card wkcard" aria-label="عداد الأسابيع الدراسية"><div class="row"><h3 class="grow" style="margin:0">🗓️ عداد الأسابيع الدراسية</h3>${badge}</div>
+ return `<section class="card wkcard" aria-label="عداد الأسابيع الدراسية"><div class="row"><h3 class="grow" style="margin:0">🗓️ عداد الأسابيع الدراسية</h3>${badge}<button type="button" class="wkcf" data-wkcf aria-label="إعادة الاحتفال" title="احتفال 🎉">🎉</button></div>
  <div class="wkdate">${esc(hj)} — ${esc(gr)}</div>${s.term?`<div class="wkterm">${esc(s.term.name)} — العام الدراسي ${SCHOOL_CAL.year}</div>`:''}${main}${cd}
  ${s.nextHol&&!(s.next&&s.next.h===s.nextHol)?`<div class="small wknh">🌴 الإجازة القادمة: <b>${esc(s.nextHol.name)}</b> — ${fmtDate(s.nextHol.from,true)}</div>`:''}
  <div class="small wknote">وفق التقويم الدراسي المعتمد من وزارة التعليم.</div></section>`}
 let WKT=null;function wkTick(){const el=document.getElementById('wkCd');if(!el){clearInterval(WKT);WKT=null;return}let ms=parseD(el.dataset.to)-new Date();if(ms<=0){render();return}const v=[Math.floor(ms/864e5),Math.floor(ms/36e5)%24,Math.floor(ms/6e4)%60,Math.floor(ms/1e3)%60];el.querySelectorAll('b').forEach((b,i)=>b.textContent=String(v[i]).padStart(i?2:1,'0'))}
-function wkStart(){clearInterval(WKT);if(document.getElementById('wkCd')){wkTick();WKT=setInterval(wkTick,1000)}}
+function wkStart(){const b=document.querySelector('[data-wkcf]');if(b)b.onclick=()=>sldConfetti(true);try{wkCelebrate()}catch(e){}clearInterval(WKT);if(document.getElementById('wkCd')){wkTick();WKT=setInterval(wkTick,1000)}}
+
+/* ---------- مقاييس دائرية للفصل ---------- */
+function wkGauge(l,p,txt,sub){const r=40,C=2*Math.PI*r,v=Math.max(0,Math.min(100,p||0));return `<div class="wkg"><svg viewBox="0 0 100 100" role="img" aria-label="${esc(l)} ${esc(txt)}"><defs><linearGradient id="wkGold${l.length}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset=".35" stop-color="#e9c860"/><stop offset=".65" stop-color="#b88a1e"/><stop offset="1" stop-color="#f7e39a"/></linearGradient></defs><circle cx="50" cy="50" r="${r}" class="wkg-bg"/><circle cx="50" cy="50" r="${r}" class="wkg-fg" stroke="url(#wkGold${l.length})" style="--c:${C.toFixed(1)};--o:${(C*(1-v/100)).toFixed(1)}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-v/100)).toFixed(1)}" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" class="wkg-t">${esc(txt)}</text></svg><div class="wkg-l">${esc(l)}</div>${sub?`<div class="wkg-s">${esc(sub)}</div>`:''}</div>`}
+function wkGauges(s){if(!s.term)return'';return `<div class="wkgs">${wkGauge('ما مضى من الفصل',s.pct,s.pct+'%','بالأيام الدراسية')}${wkGauge('الأسابيع',s.k/s.N*100,s.k+'/'+s.N,'الأسبوع الحالي من '+s.N)}</div>`}
+/* ---------- احتفال القصاصات الذهبية (مرة لكل مناسبة) ---------- */
+function wkCelebrate(){const s=wkState(),T=SCHOOL_CAL.terms;let k='';
+ if(s.hol)k='h_'+s.hol.from;else if(s.term&&s.k)k='w_'+s.term.start+'_'+s.k;
+ if(!s.term){const e=T.filter(x=>x.end<s.t).pop();if(e)k='e_'+e.end}
+ if(s.term&&s.hol&&s.term.end<=s.hol.to)k='e_'+s.term.end;
+ if(!k)return;const key='sld_cf_'+k;try{if(localStorage.getItem(key))return;localStorage.setItem(key,'1')}catch(e){return}setTimeout(()=>sldConfetti(),600)}
+function sldConfetti(force){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;if(document.getElementById('sldCf'))return;
+ const c=document.createElement('canvas');c.id='sldCf';c.setAttribute('aria-hidden','true');c.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999';document.body.appendChild(c);
+ const dpr=Math.min(2,devicePixelRatio||1),W=innerWidth,H=innerHeight;c.width=W*dpr;c.height=H*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);
+ const cols=['#f7e39a','#e9c860','#c9a227','#fff3c4','#b88a1e','#1b3a63','#0f2747'],n=W<500?90:150,P=[];
+ for(let i=0;i<n;i++)P.push({x:W/2+(Math.random()-.5)*W*.3,y:H*.35,vx:(Math.random()-.5)*12,vy:-Math.random()*11-4,w:5+Math.random()*6,h:8+Math.random()*8,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:cols[i%cols.length],s:Math.random()*6});
+ const t0=performance.now(),D=3800;(function f(t){const e=t-t0;x.clearRect(0,0,W,H);x.globalAlpha=e>D-900?Math.max(0,(D-e)/900):1;
+  P.forEach(p=>{p.vy+=.28;p.vx*=.985;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.scale(1,Math.cos(e/120+p.s));x.fillStyle=p.c;x.fillRect(-p.w/2,-p.h/2,p.w,p.h);x.restore()});
+  if(e<D)requestAnimationFrame(f);else c.remove()})(t0)}
