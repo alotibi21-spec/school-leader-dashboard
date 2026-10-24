@@ -416,3 +416,9 @@ main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s
 @media(max-width:560px){.wkg svg{width:96px;height:96px}}
 @media print{#sldCf,.wkcf{display:none!important}}
 @media (prefers-reduced-motion:reduce){.wkg-fg{animation:none}}
+
+/* v1.22.1 روابط الأنظمة الرسمية */
+.offl-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.offl-c{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;text-decoration:none;color:var(--navy);background:linear-gradient(135deg,rgba(233,212,138,.55),rgba(201,162,39,.25));border:1px solid rgba(201,162,39,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(201,162,39,.18);transition:transform .15s,box-shadow .15s;min-width:0;overflow-wrap:anywhere}
+.offl-c:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(201,162,39,.3)}
+.offl-c small{color:var(--muted)}[data-theme=dark] .offl-c{color:var(--gold2)}

@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.22.0';
+const APP_VERSION='1.22.1';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -988,6 +988,15 @@ function maybeRecur(t,prev){if(t.status==='مكتملة'&&prev!=='مكتملة'&
  if(t.status==='مكتملة'&&!t.doneAt)t.doneAt=today()}
 
 /* ---------- Views ---------- */
+const OFFICIAL_LINKS=[
+ {n:'نظام فارس',d:'الخدمة الذاتية لمنسوبي التعليم',ic:'🧾',u:'https://sshr.moe.gov.sa/OA_HTML/AppsLocalLogin.jsp'},
+ {n:'نظام نور',d:'نظام الإدارة التربوية',ic:'📘',u:'https://noor.moe.gov.sa/'},
+ {n:'منصة مدرستي',d:'منصة التعلم الإلكتروني',ic:'🏫',u:'https://schools.madrasati.sa/'},
+ {n:'منصة تميّز',d:'التقويم والاعتماد المدرسي — هيئة تقويم التعليم والتدريب',ic:'🏅',u:'https://se.etec.gov.sa/'},
+ {n:'مستقبلهم',d:'الموقع الرسمي للتطبيق',ic:'🌱',u:'https://www.etec.gov.sa/ar/programs/mustaqbalhum'},
+ {n:'مستقبلهم — App Store',d:'تحميل لأجهزة آيفون',ic:'🍏',u:'https://apps.apple.com/sa/app/id6446278845'},
+ {n:'مستقبلهم — Google Play',d:'تحميل لأجهزة أندرويد',ic:'▶️',u:'https://play.google.com/store/apps/details?id=sa.gov.etec.mustaqbalhum'}];
+function linksCard(){return `<div class="card offl"><h3>🔗 روابط الأنظمة الرسمية</h3><div class="offl-g">${OFFICIAL_LINKS.map(l=>`<a class="offl-c" href="${l.u}" target="_blank" rel="noopener noreferrer"><b>${l.ic} ${l.n}</b><small>${l.d}</small></a>`).join('')}</div></div>`}
 const view=()=>(location.hash||'#dashboard').slice(1).split('?')[0];
 const flt={};
 function listView(c){const sc=S[c];const F=flt[c]=flt[c]||{q:'',status:'',domain:'',from:'',to:''};
@@ -1251,7 +1260,7 @@ function itqView(){if(ITQ.st==='idle'){itqLoad()}const s=ITQ.sum;
   <div class="btns" style="justify-content:center"><a class="btn gold" href="${ITQ_URL}" target="_blank" rel="noopener">🚀 فتح منصة إتقان</a><button class="btn ghost" data-act="itqimp">⬆️ استيراد نسخة JSON</button></div></div>`;
  const G=isGirls(),k=(l,v,x,cl='')=>`<div class="kpi ${cl}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${x}</div></div>`;
  const TRN={calc:['🧮','احسب','المهارات الحسابية'],think:['💡','فكّر','التفكير الناقد وحل المشكلات'],master:['🎯','أتقن','قياس الأثر ونواتج التعلم']};
- const LV=G?['متقنة','نامية','متعثّرة']:['متقن','نامٍ','متعثّر'];const pt=s.pass.ok+s.pass.dev+s.pass.low,pc=x=>pt?Math.round(100*x/pt):0;
+ const LV=G?['متقنة','قيد الإتقان','متعثّرة']:['متقن','قيد الإتقان','متعثّر'];const pt=s.pass.ok+s.pass.dev+s.pass.low,pc=x=>pt?Math.round(100*x/pt):0;
  const srcL=ITQ.src==='db'?'📱 مباشرة من منصة إتقان على هذا الجهاز':'📄 من ملف مستورد'+(s.file?' ('+esc(s.file)+')':'');
  return hd+`<div class="card small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span class="pill blue">${srcL}</span>${s.school?`<span class="pill">${esc(s.school)}</span>`:''}<span class="muted">آخر قراءة: ${new Date(s.t).toLocaleString('ar-SA-u-nu-latn',{dateStyle:'medium',timeStyle:'short'})}</span></div>
  <h3>🧪 نتائج تدريبات نافس</h3><div class="grid kpis">${k('جلسات التدريب',s.prac.sessions,s.prac.last?'آخرها '+esc(s.prac.last):'لا جلسات بعد')}${k('الأسئلة المُجابة',s.prac.n,s.prac.ok+' إجابة صحيحة')}${k('الدقة العامة',itqP(s.prac.acc),'لكل الأسئلة',s.prac.acc==null?'':s.prac.acc>=s.th.M?'ok':s.prac.acc>=s.th.P?'':'bad')}${k(G?'المتدرّبات':'المتدرّبون',s.prac.learners,'من أصل '+s.students+' مسجَّلًا في إتقان')}</div>
@@ -1283,6 +1292,7 @@ function render(){const v=view(),m=$('#main');
  if(!searchQ&&(v==='meetings'||v==='exmeet')){const b=m.querySelector('.head .btns');if(b)b.insertAdjacentHTML('afterbegin','<button class="btn ghost" data-act="mmode" data-id="g">🎙️ وضع الاجتماع</button>')}
  if(window._tkReady&&tkLastG!==null&&tkLastG!==tkGender())renderTicker();
  if(!searchQ&&v==='dashboard'){const h=mcCard();if(h)m.insertAdjacentHTML('afterbegin',h);try{m.insertAdjacentHTML('afterbegin',weeksCard());wkStart()}catch(e){console.warn(e)}}
+ if(!searchQ&&v==='dashboard'){try{m.insertAdjacentHTML('beforeend',linksCard())}catch(e){console.warn(e)}}
  if(!searchQ&&v==='dashboard'){const h=instCard();if(h){const hd=m.querySelector('.head');hd?hd.insertAdjacentHTML('afterend',h):m.insertAdjacentHTML('afterbegin',h)}}
  m.innerHTML=fem(m.innerHTML);chrome();{const fc=document.querySelector('footer.credit');if(fc)fc.hidden=v!=='dashboard'}if(v==='settings')protFill();if(!searchQ){gmCheck();if(v==='journey')jCheck()}}
 let NAV0;function chrome(){const s=DB.settings;document.documentElement.dataset.g=s.gender==='بنات'?'girls':'boys';applyThemeColor();$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';NAV0=NAV0||$('#nav').innerHTML;const nv=fem(NAV0);if($('#nav').dataset.g!==String(s.gender)){$('#nav').innerHTML=nv;$('#nav').dataset.g=s.gender}$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view()));document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
