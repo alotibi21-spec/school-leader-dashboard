@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.22.5';
+const APP_VERSION='1.23.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1234,7 +1234,7 @@ function itqSummarize(S){if(!S||typeof S!=='object')return null;const st=S.setti
  TR.forEach(k=>{const L=prac.filter(r=>r.tr&&r.tr[k]&&r.tr[k][1]).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||((a.t||0)-(b.t||0)));
   const n=L.reduce((s,r)=>s+r.tr[k][1],0),ok=L.reduce((s,r)=>s+r.tr[k][0],0);const by={};L.forEach(r=>{const s=r.student||'—';(by[s]=by[s]||[]).push(r)});
   let bn=0,bo=0,an=0,ao=0,pairs=0;Object.values(by).forEach(a=>{if(a.length<2)return;pairs++;const f=a[0].tr[k],l=a[a.length-1].tr[k];bn+=f[1];bo+=f[0];an+=l[1];ao+=l[0]});
-  tracks[k]={n,ok,acc:n?100*ok/n:null,sessions:L.length,before:bn?100*bo/bn:null,after:an?100*ao/an:null,pairs}});
+  tracks[k]={n,ok,acc:n?100*ok/n:null,sessions:L.length,before:bn?100*bo/bn:null,after:an?100*ao/an:null,pairs,bn,bo,an,ao}});
  const marks=Array.isArray(S.marks)?S.marks:[],res=Array.isArray(S.results)?S.results:[],att=Array.isArray(S.attempts)?S.attempts:[];
  let src=marks;if(!marks.length){const by={};res.forEach(r=>{if(r&&r.student!=null&&r.score!=null)(by[r.student]=by[r.student]||[]).push(+r.score)});src=Object.entries(by).map(([s,a])=>({student:s,subject:'متوسط الاختبارات القصيرة',grade:avg(a)}))}
  const edge=[];src.forEach(m=>{if(!m||m.grade==null)return;const ab=+m.absence||0,pt=m.part??70;const pred=Math.max(0,Math.min(100,m.grade-ab*0.8+(pt-70)*0.08));if(pred<P+10&&pred>=P-15)edge.push({st:String(m.student||''),subject:String(m.subject||''),grade:+m.grade,pred,risk:ab>5||pt<50})});
@@ -1245,24 +1245,55 @@ function itqSummarize(S){if(!S||typeof S!=='object')return null;const st=S.setti
  const pn=prac.reduce((s,r)=>s+(+r.n||0),0),po=prac.reduce((s,r)=>s+(+r.ok||0),0);const dates=prac.map(r=>r.date).filter(Boolean).sort();
  return{t:Date.now(),school:st.school||'',students:(S.students||[]).length,prac:{sessions:prac.length,n:pn,ok:po,acc:pn?100*po/pn:null,learners:new Set(prac.map(r=>r.student).filter(Boolean)).size,last:dates[dates.length-1]||''},tracks,edge:edge.slice(0,60),edgeN:edge.length,pass:{...lv,students:stu.size},th:{P,E,M}}}
 function itqEmpty(s){return !s||(!s.prac.sessions&&!s.edgeN&&!(s.pass.ok+s.pass.dev+s.pass.low)&&!s.students)}
-async function itqLoad(){ITQ.st='loading';const raw=await itqReadDB();let s=raw?itqSummarize(raw):null;
- if(s&&!itqEmpty(s)){ITQ={st:'ok',sum:s,src:'db',err:''}}else{let imp=null;try{imp=JSON.parse(localStorage.getItem(ITQ_IMP)||'null')}catch(_){}ITQ=imp&&imp.prac?{st:'ok',sum:imp,src:'file',err:''}:{st:'empty',sum:null,src:raw?'dbempty':'',err:''}}
+/* استيراد بيانات المعلمين (ملفات «تصدير للمدير» من إتقان) — تُحفظ في IndexedDB خاص باللوحة على هذا الجهاز فقط */
+function tiDb(){return new Promise((res,rej)=>{if(!('indexedDB' in window))return rej(new Error('no idb'));const r=indexedDB.open('sld-itqan-teachers',1);r.onupgradeneeded=()=>r.result.createObjectStore('teachers',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function tiTx(m,f){const d=await tiDb();return new Promise((ok,no)=>{const t=d.transaction('teachers',m),q=f(t.objectStore('teachers'));t.oncomplete=()=>{d.close();ok(q&&q.result)};t.onerror=()=>{d.close();no(t.error)}})}
+const tiAll=()=>tiTx('readonly',s=>s.getAll()).catch(()=>[]);
+function tiValid(j){if(!j||typeof j!=='object'||j.format!=='itqan-export'||!(+j.formatVersion>=1))return 'ليس ملف «تصدير للمدير» من منصة إتقان';
+ if(+j.formatVersion>1)return 'إصدار الملف أحدث من اللوحة — حدّث لوحة القيادة';const T=j.teacher,s=j.summary;
+ if(!T||!T.id||!String(T.name||'').trim())return 'بيانات المعلم ناقصة في الملف';if(!s||!s.prac||!s.tracks||!s.pass||!Array.isArray(s.edge))return 'ملخص البيانات ناقص أو تالف';
+ if(isNaN(Date.parse(j.exportedAt)))return 'تاريخ التصدير غير صالح';return ''}
+async function tiImport(files){const L=[...files];if(!L.length)return;let ok=0,old=0;const bad=[];
+ for(const f of L){let j;try{if(f.size>5e6)throw 0;j=JSON.parse(await f.text())}catch(_){bad.push(f.name+': ملف JSON غير صالح');continue}
+  const e=tiValid(j);if(e){bad.push(f.name+': '+e);continue}
+  const T=j.teacher,ts=Date.parse(j.exportedAt);const rec={id:String(T.id).slice(0,80),name:String(T.name).slice(0,80),subject:String(T.subject||'').slice(0,200),classes:(Array.isArray(T.classes)?T.classes:[]).map(String).slice(0,30),school:String(T.school||'').slice(0,120),ts,exportedAt:j.exportedAt,importedAt:Date.now(),file:f.name,appVersion:String(j.appVersion||''),sum:j.summary};
+  try{const prev=await tiTx('readonly',s=>s.get(rec.id));if(prev&&prev.ts>=ts){old++;continue}await tiTx('readwrite',s=>s.put(rec));ok++}catch(_){bad.push(f.name+': تعذّر الحفظ على الجهاز')}}
+ const msg=[ok?`✓ استُوردت بيانات ${ok} ${ok===1?'معلم':'معلمين'}`:'',old?`تُجوهل ${old} ملف أقدم من المحفوظ`:'',bad.length?`✗ ${bad.length} ملف مرفوض`:''].filter(Boolean).join(' · ');
+ toast(msg||'لم يُستورد شيء');if(bad.length)setTimeout(()=>alert('ملفات لم تُستورد:\n'+bad.join('\n')),50);ITQ.st='idle';render()}
+async function tiDel(id){const T=(ITQ.teachers||[]).find(t=>t.id===id);if(!confirm('حذف بيانات المعلم «'+(T?T.name:'')+'» من هذا الجهاز؟'))return;try{await tiTx('readwrite',s=>s.delete(id));toast('✓ حُذفت بيانات المعلم')}catch(_){toast('تعذّر الحذف')}ITQ.st='idle';render()}
+function itqAgg(parts){if(!parts.length)return null;if(parts.length===1&&!parts[0].who)return parts[0].s;const A={t:0,school:'',students:0,prac:{sessions:0,n:0,ok:0,acc:null,learners:0,last:''},tracks:{},edge:[],edgeN:0,pass:{ok:0,dev:0,low:0,students:0},th:parts[0].s.th||{P:50,E:90,M:80}};
+ const sch=new Set();parts.forEach(({s,who})=>{A.t=Math.max(A.t,s.t||0);if(s.school)sch.add(s.school);A.students+=+s.students||0;const p=s.prac||{};['sessions','n','ok','learners'].forEach(k=>A.prac[k]+=+p[k]||0);if((p.last||'')>A.prac.last)A.prac.last=p.last;
+  Object.entries(s.tracks||{}).forEach(([k,t])=>{const a=A.tracks[k]=A.tracks[k]||{n:0,ok:0,sessions:0,pairs:0,bn:0,bo:0,an:0,ao:0};['n','ok','sessions','pairs'].forEach(x=>a[x]+=+t[x]||0);
+   if(t.bn!=null){a.bn+=+t.bn;a.bo+=+t.bo;a.an+=+t.an;a.ao+=+t.ao}else if(t.before!=null&&t.after!=null&&t.pairs){a.bn+=t.pairs*100;a.bo+=t.before*t.pairs;a.an+=t.pairs*100;a.ao+=t.after*t.pairs}});
+  (s.edge||[]).forEach(e=>A.edge.push({...e,who}));A.edgeN+=+s.edgeN||0;['ok','dev','low','students'].forEach(k=>A.pass[k]+=+(s.pass||{})[k]||0)});
+ A.prac.acc=A.prac.n?100*A.prac.ok/A.prac.n:null;Object.values(A.tracks).forEach(t=>{t.acc=t.n?100*t.ok/t.n:null;t.before=t.bn?100*t.bo/t.bn:null;t.after=t.an?100*t.ao/t.an:null});
+ A.edge.sort((a,b)=>a.pred-b.pred);A.edge=A.edge.slice(0,150);A.school=[...sch].join('، ');A.multi=true;return A}
+async function itqLoad(){ITQ.st='loading';const raw=await itqReadDB();let s=raw?itqSummarize(raw):null;const T=(await tiAll()).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ar'));
+ const tid=raw&&raw.settings&&raw.settings.tid;const parts=T.map(t=>({s:t.sum,who:t.name}));let src='';
+ if(s&&!itqEmpty(s)&&!(tid&&T.some(t=>t.id===tid))){parts.unshift({s,who:T.length?((raw.settings.user&&raw.settings.user.name)||'هذا الجهاز')+' (هذا الجهاز)':''});src='db'}
+ if(!parts.length){let imp=null;try{imp=JSON.parse(localStorage.getItem(ITQ_IMP)||'null')}catch(_){}if(imp&&imp.prac){parts.push({s:imp,who:''});src='file'}}
+ if(T.length)src=src==='db'?'mix':'teachers';
+ ITQ=parts.length?{st:'ok',sum:itqAgg(parts),src,err:'',teachers:T}:{st:'empty',sum:null,src:raw?'dbempty':'',err:'',teachers:T};
  if(view()==='itqan')render()}
+function tiCard(){const T=ITQ.teachers||[];const fd=t=>new Date(t).toLocaleString('ar-SA-u-nu-latn',{dateStyle:'medium',timeStyle:'short'});
+ return`<div class="card tiCard"><h3>👥 استيراد بيانات المعلمين <span class="pill ${T.length?'green':'gray'}">${T.length}</span></h3><div class="small muted">يرسل كل معلم ملف «📤 تصدير للمدير» من منصة إتقان على جواله (واتساب مثلاً)، ثم اختر الملفات هنا — يمكن اختيار عدة ملفات معًا. إعادة الاستيراد من المعلم نفسه تستبدل بياناته الأقدم. تُحفظ على هذا الجهاز فقط.</div>
+ <div class="btns" style="margin-top:8px"><button class="btn gold" data-act="tiimp">📥 استيراد بيانات المعلمين</button></div>
+ ${T.length?`<div class="tw" style="margin-top:8px"><table><tr><th>المعلم</th><th>آخر تحديث</th><th></th></tr>${T.map(t=>`<tr><td><b>${esc(t.name)}</b><div class="small muted">${esc([t.subject,(t.classes||[]).join('، ')].filter(Boolean).join(' · ')||'—')}</div></td><td class="small">${fd(t.ts)}</td><td><button class="btn ghost sm" data-act="tidel" data-id="${esc(t.id)}" aria-label="حذف ${esc(t.name)}">🗑️ حذف</button></td></tr>`).join('')}</table></div>`:''}</div>`}
 function itqImport(f){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);const S=j&&j.data&&(j.app==='itqan'||j.data.settings)?j.data:(j&&j.settings&&(j.students||j.results)?j:null);if(!S)return toast('الملف ليس نسخة احتياطية من منصة إتقان');const s=itqSummarize(S);if(!s)return toast('تعذّر قراءة الملف');s.file=f.name;
   try{localStorage.setItem(ITQ_IMP,JSON.stringify(s))}catch(_){return toast('تعذّر الحفظ على الجهاز')}ITQ={st:'ok',sum:s,src:'file',err:''};toast('✓ استُورد ملخص إتقان — حُفظ الملخص فقط على هذا الجهاز');render()}catch(_){toast('ملف JSON غير صالح')}};r.readAsText(f)}
 const itqP=v=>v==null?'—':Math.round(v)+'%';
 function itqView(){if(ITQ.st==='idle'){itqLoad()}const s=ITQ.sum;
- const hd=`<div class="head"><div><h2>🔗 ربط منصة إتقان</h2><div class="muted small">قراءة فقط لبيانات منصة إتقان المحفوظة على هذا الجهاز نفسه — لا تُرسل أي بيانات خارج الجهاز ولا يُعدَّل شيء في إتقان.</div></div><div class="btns"><a class="btn gold" href="${ITQ_URL}" target="_blank" rel="noopener">🚀 فتح منصة إتقان</a><button class="btn ghost" data-act="itqrel">🔄 تحديث القراءة</button><button class="btn ghost" data-act="itqimp">⬆️ استيراد نسخة إتقان (JSON)</button>${ITQ.src==='file'?'<button class="btn ghost" data-act="itqclr">حذف الملخص المستورد</button>':''}</div></div>`;
+ const hd=`<div class="head"><div><h2>🔗 ربط منصة إتقان</h2><div class="muted small">قراءة فقط لبيانات منصة إتقان المحفوظة على هذا الجهاز نفسه — لا تُرسل أي بيانات خارج الجهاز ولا يُعدَّل شيء في إتقان.</div></div><div class="btns"><a class="btn gold" href="${ITQ_URL}" target="_blank" rel="noopener">🚀 فتح منصة إتقان</a><button class="btn ghost" data-act="itqrel">🔄 تحديث القراءة</button><button class="btn gold" data-act="tiimp">📥 استيراد بيانات المعلمين</button><button class="btn ghost" data-act="itqimp">⬆️ استيراد نسخة إتقان (JSON)</button>${ITQ.src==='file'?'<button class="btn ghost" data-act="itqclr">حذف الملخص المستورد</button>':''}</div></div>`;
  if(ITQ.st==='idle'||ITQ.st==='loading')return hd+'<div class="card empty">⏳ جارٍ قراءة بيانات إتقان من هذا الجهاز…</div>';
- if(!s)return hd+`<div class="card empty"><div style="font-size:2rem">🔗</div><h3>لا توجد بيانات من منصة إتقان على هذا الجهاز بعد</h3>
+ if(!s)return hd+tiCard()+`<div class="card empty"><div style="font-size:2rem">🔗</div><h3>لا توجد بيانات من منصة إتقان على هذا الجهاز بعد</h3>
   <p class="small">${ITQ.src==='dbempty'?'وُجدت منصة إتقان على هذا الجهاز لكنها لا تحتوي نتائج بعد.':'لم يُعثر على بيانات إتقان في هذا المتصفح.'}</p>
   <ol class="small" style="text-align:start;max-width:560px;margin:8px auto;line-height:2"><li>افتح منصة إتقان <b>من المتصفح نفسه على هذا الجهاز</b> وأدخل بيانات الطلاب والنتائج وتدريبات نافس، ثم عد واضغط «🔄 تحديث القراءة».</li><li>أو من إتقان: الإعدادات ← «⬇️ تنزيل نسخة احتياطية (JSON)»، ثم هنا «⬆️ استيراد نسخة إتقان (JSON)». يُحفظ الملخص فقط على هذا الجهاز.</li></ol>
   <div class="btns" style="justify-content:center"><a class="btn gold" href="${ITQ_URL}" target="_blank" rel="noopener">🚀 فتح منصة إتقان</a><button class="btn ghost" data-act="itqimp">⬆️ استيراد نسخة JSON</button></div></div>`;
  const G=isGirls(),k=(l,v,x,cl='')=>`<div class="kpi ${cl}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${x}</div></div>`;
  const TRN={calc:['🧮','احسب','المهارات الحسابية'],think:['💡','فكّر','التفكير الناقد وحل المشكلات'],master:['🎯','أتقن','قياس الأثر ونواتج التعلم']};
  const LV=G?['متقنة','قيد الإتقان','متعثّرة']:['متقن','قيد الإتقان','متعثّر'];const pt=s.pass.ok+s.pass.dev+s.pass.low,pc=x=>pt?Math.round(100*x/pt):0;
- const srcL=ITQ.src==='db'?'📱 مباشرة من منصة إتقان على هذا الجهاز':'📄 من ملف مستورد'+(s.file?' ('+esc(s.file)+')':'');
- return hd+`<div class="card small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span class="pill blue">${srcL}</span>${s.school?`<span class="pill">${esc(s.school)}</span>`:''}<span class="muted">آخر قراءة: ${new Date(s.t).toLocaleString('ar-SA-u-nu-latn',{dateStyle:'medium',timeStyle:'short'})}</span></div>
+ const nT=(ITQ.teachers||[]).length;const srcL=ITQ.src==='db'?'📱 مباشرة من منصة إتقان على هذا الجهاز':ITQ.src==='teachers'?'👥 مجمّع من '+nT+' '+(nT===1?'معلم':'معلمين'):ITQ.src==='mix'?'👥 مجمّع: هذا الجهاز + '+nT+' '+(nT===1?'معلم':'معلمين'):'📄 من ملف مستورد'+(s.file?' ('+esc(s.file)+')':'');
+ return hd+tiCard()+`<div class="card small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span class="pill blue">${srcL}</span>${s.school?`<span class="pill">${esc(s.school)}</span>`:''}<span class="muted">آخر قراءة: ${new Date(s.t).toLocaleString('ar-SA-u-nu-latn',{dateStyle:'medium',timeStyle:'short'})}</span></div>
  <h3>🧪 نتائج تدريبات نافس</h3><div class="grid kpis">${k('جلسات التدريب',s.prac.sessions,s.prac.last?'آخرها '+esc(s.prac.last):'لا جلسات بعد')}${k('الأسئلة المُجابة',s.prac.n,s.prac.ok+' إجابة صحيحة')}${k('الدقة العامة',itqP(s.prac.acc),'لكل الأسئلة',s.prac.acc==null?'':s.prac.acc>=s.th.M?'ok':s.prac.acc>=s.th.P?'':'bad')}${k(G?'المتدرّبات':'المتدرّبون',s.prac.learners,'من أصل '+s.students+' مسجَّلًا في إتقان')}</div>
  <div class="card"><h3>🎯 الدقة حسب المسار (قبل ← بعد)</h3><div class="small muted">«قبل» = أول جلسة لكل طالب في المسار، «بعد» = آخر جلسة له (للطلاب الذين لديهم جلستان فأكثر).</div>
  <div class="comgrid" style="margin-top:10px">${Object.entries(TRN).map(([key,[ic,n,d]])=>{const t=s.tracks[key]||{};const df=t.before!=null&&t.after!=null?t.after-t.before:null;
@@ -1270,7 +1301,7 @@ function itqView(){if(ITQ.st==='idle'){itqLoad()}const s=ITQ.sum;
   <div class="small" style="margin-top:6px">${t.ok||0} صحيحة من ${t.n||0} سؤال · ${t.sessions||0} جلسة</div>
   <div class="small" style="margin-top:4px">قبل: <b>${itqP(t.before)}</b> ← بعد: <b>${itqP(t.after)}</b> ${df==null?'<span class="pill gray">يحتاج جلستين لطالب واحد على الأقل</span>':`<span class="pill ${df>0?'green':df<0?'red':'gray'}">${df>0?'▲ +':df<0?'▼ ':''}${Math.round(df)} نقطة</span>`}</div></div>`}).join('')}</div></div>
  <div class="card"><h3>⚠️ طلاب على «حافة التعثّر» <span class="pill ${s.edgeN?'amber':'green'}">${s.edgeN}</span></h3><div class="small muted">متوقَّع أن تكون درجتهم بين ${s.th.P-15}% و${s.th.P+10}% (حسب حد النجاح ${s.th.P}% في إعدادات إتقان، مع أثر الغياب والمشاركة).</div>
- ${s.edgeN?`<div class="tw" style="margin-top:8px"><table><tr><th>الطالب</th><th>المادة</th><th>الدرجة</th><th>المتوقَّع</th><th>ملاحظة</th></tr>${s.edge.map(e=>`<tr><td>${esc(e.st)}</td><td>${esc(e.subject)}</td><td>${Math.round(e.grade)}</td><td>${Math.round(e.pred)}</td><td>${e.risk?'<span class="pill red" title="غياب مرتفع أو مشاركة ضعيفة">⚠️ غياب/مشاركة</span>':''}</td></tr>`).join('')}</table></div>${s.edgeN>s.edge.length?`<div class="small muted">يُعرض أول ${s.edge.length} — الباقي في إتقان.</div>`:''}`:'<p class="small">لا يوجد طلاب على حافة التعثّر وفق البيانات الحالية.</p>'}</div>
+ ${s.edgeN?`<div class="tw" style="margin-top:8px"><table><tr><th>الطالب</th>${s.multi?'<th>المعلم</th>':''}<th>المادة</th><th>الدرجة</th><th>المتوقَّع</th><th>ملاحظة</th></tr>${s.edge.map(e=>`<tr><td>${esc(e.st)}</td>${s.multi?`<td>${esc(e.who||'—')}</td>`:''}<td>${esc(e.subject)}</td><td>${Math.round(e.grade)}</td><td>${Math.round(e.pred)}</td><td>${e.risk?'<span class="pill red" title="غياب مرتفع أو مشاركة ضعيفة">⚠️ غياب/مشاركة</span>':''}</td></tr>`).join('')}</table></div>${s.edgeN>s.edge.length?`<div class="small muted">يُعرض أول ${s.edge.length} — الباقي في إتقان.</div>`:''}`:'<p class="small">لا يوجد طلاب على حافة التعثّر وفق البيانات الحالية.</p>'}</div>
  <div class="card"><h3>🛂 جواز المهارات — توزيع المستويات</h3><div class="small muted">عدد المهارات المقيسة لكل طالب (مجموع طالب × مهارة)، وعدد من قيست مهاراتهم: ${s.pass.students}. ${LV[0]}: ${s.th.M}% فأكثر · ${LV[1]}: من ${s.th.P}% إلى أقل من ${s.th.M}% · ${LV[2]}: أقل من ${s.th.P}%.</div>
  ${pt?`<div class="grid kpis" style="margin-top:8px">${k('🟢 '+LV[0],s.pass.ok,pc(s.pass.ok)+'%','ok')}${k('🔵 '+LV[1],s.pass.dev,pc(s.pass.dev)+'%')}${k('🔴 '+LV[2],s.pass.low,pc(s.pass.low)+'%','bad')}</div>
  <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;border:1px solid var(--line)"><i style="width:${pc(s.pass.ok)}%;background:#15803d"></i><i style="width:${pc(s.pass.dev)}%;background:#1d4ed8"></i><i style="width:${pc(s.pass.low)}%;background:#b91c1c"></i></div>`:'<p class="small">لا توجد مهارات مقيسة بعد في إتقان.</p>'}</div>`}
@@ -1616,7 +1647,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');
   optpl:()=>download('نموذج-استيراد-الخطة-التشغيلية.csv','\ufeff'+[['المجال','الهدف','البرنامج/المبادرة','الإجراءات','المسؤول','تاريخ البداية','تاريخ النهاية','مؤشر الأداء','المستهدف','الحالة','نسبة الإنجاز']].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n','text/csv'),
   opdel:async()=>{if(!confirm('حذف هذا الإصدار من ملف الخطة؟'))return;await delFile(id);render()},
   vtask:()=>{openForm('tasks',null);voiceWire($('#dlgForm'));const t=$('#f_title');const b=t&&t.closest('.vw')?.querySelector('.micb');if(t&&b)voiceStart(t,b);else voiceNote()},
-  itqrel:()=>{ITQ.st='idle';render()},itqimp:()=>$('#itqIn').click(),itqclr:()=>{if(!confirm('حذف ملخص إتقان المستورد من هذا الجهاز؟'))return;localStorage.removeItem(ITQ_IMP);ITQ.st='idle';render()},
+  itqrel:()=>{ITQ.st='idle';render()},itqimp:()=>$('#itqIn').click(),tiimp:()=>$('#tiIn').click(),tidel:()=>tiDel(id),itqclr:()=>{if(!confirm('حذف ملخص إتقان المستورد من هذا الجهاز؟'))return;localStorage.removeItem(ITQ_IMP);ITQ.st='idle';render()},
   guadd:()=>{const t=$('#guT').value.trim(),u=$('#guU').value.trim();if(!t)return toast('اكتب اسم الدليل');if(u&&!/^https?:\/\//.test(u))return toast('الرابط يجب أن يبدأ بـ https://');const a=guExtra();a.push({id:'gu'+Date.now(),t,ed:$('#guE').value.trim(),circ:$('#guC').value.trim(),u});guSave(a);render();toast('تمت إضافة الدليل')},
   gudel:()=>{if(!confirm('حذف هذا الدليل؟'))return;guSave(guExtra().filter(x=>x.id!==id));render()},
   tpdsave:()=>tpdSave(false),bksnooze:()=>{DB.settings.backupSnooze=addDays(today(),3);save();bkHide();toast('سيُذكّرك التطبيق بعد 3 أيام')},tpdsavevid:()=>tpdSave(true),
@@ -1701,6 +1732,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-ptab]');if
 document.addEventListener('submit',e=>{if(e.target.id!=='setForm')return;e.preventDefault();const f=e.target;const mob=f.elements.supervisorMobile.value.trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));if(mob&&!/^\+?\d[\d\s-]{7,14}$/.test(mob)){toast('رقم الجوال غير صالح');f.elements.supervisorMobile.focus();return}
  ['school','principal','supervisor','region','year'].forEach(k=>DB.settings[k]=f.elements[k].value.trim().slice(0,120));DB.settings.supervisorMobile=mob;readSG(f);audit('تحديث الإعدادات','settings',{title:'بيانات المدرسة'});save();render();toast('حُفظت الإعدادات')});
 $('#itqIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&itqImport(f)};
+$('#tiIn').onchange=e=>{const L=[...e.target.files];e.target.value='';tiImport(L)};
 $('#fileIn').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&importJSON(f)};
 $('#evIn').onchange=async e=>{const fl=[...e.target.files];e.target.value='';if(evCtx&&fl.length){await addFiles(evCtx.c,evCtx.rid,fl);openEv(evCtx.c,evCtx.rid)}};
 $('#opIn').onchange=e=>{const fl=[...e.target.files];e.target.value='';secUpload('oplan',null,fl)};

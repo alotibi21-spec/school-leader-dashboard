@@ -1,5 +1,5 @@
 /*! لوحة قيادة المدرسة — © 2026 / 1448هـ عبدالله خالد العتيبي (Abdullah Khalid Alotaibi). جميع الحقوق محفوظة — All Rights Reserved. انظر ملف LICENSE. */
-const V='sld-1.22.5',F=['./','index.html','styles.css','app.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','fonts/Tajawal-400.ttf','fonts/Tajawal-700.ttf','fonts/Tajawal-800.ttf','vendor/xlsx.full.min.js','vendor/qrcode.js','survey.html','survey.js','guides/memo-guides-1442-1437.jpg','guides/g-org1442.png','guides/g-proc1437.png'];
+const V='sld-1.23.0',F=['./','index.html','styles.css','app.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','fonts/Tajawal-400.ttf','fonts/Tajawal-700.ttf','fonts/Tajawal-800.ttf','vendor/xlsx.full.min.js','vendor/qrcode.js','survey.html','survey.js','guides/memo-guides-1442-1437.jpg','guides/g-org1442.png','guides/g-proc1437.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(F.map(u=>fetch(u,{cache:'no-store'}).then(r=>{if(r.ok)return c.put(u,r)})))))});
 self.addEventListener('message',e=>{if(e.data==='skip')self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V&&x!=='sld-models-1').map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
