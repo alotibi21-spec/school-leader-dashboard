@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.20.1';
+const APP_VERSION='1.21.0';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1282,7 +1282,7 @@ function render(){const v=view(),m=$('#main');
  if(!searchQ&&(v==='honors'||v==='inits')){const hd=m.querySelector('.head');const w=document.createElement('div');w.innerHTML=v==='honors'?honView():initView();[...w.children].reverse().forEach(ch=>hd.after(ch))}
  if(!searchQ&&(v==='meetings'||v==='exmeet')){const b=m.querySelector('.head .btns');if(b)b.insertAdjacentHTML('afterbegin','<button class="btn ghost" data-act="mmode" data-id="g">🎙️ وضع الاجتماع</button>')}
  if(window._tkReady&&tkLastG!==null&&tkLastG!==tkGender())renderTicker();
- if(!searchQ&&v==='dashboard'){const h=mcCard();if(h)m.insertAdjacentHTML('afterbegin',h)}
+ if(!searchQ&&v==='dashboard'){const h=mcCard();if(h)m.insertAdjacentHTML('afterbegin',h);try{m.insertAdjacentHTML('afterbegin',weeksCard());wkStart()}catch(e){console.warn(e)}}
  if(!searchQ&&v==='dashboard'){const h=instCard();if(h){const hd=m.querySelector('.head');hd?hd.insertAdjacentHTML('afterend',h):m.insertAdjacentHTML('afterbegin',h)}}
  m.innerHTML=fem(m.innerHTML);chrome();{const fc=document.querySelector('footer.credit');if(fc)fc.hidden=v!=='dashboard'}if(v==='settings')protFill();if(!searchQ){gmCheck();if(v==='journey')jCheck()}}
 let NAV0;function chrome(){const s=DB.settings;document.documentElement.dataset.g=s.gender==='بنات'?'girls':'boys';applyThemeColor();$('#schoolTitle').textContent=s.school||'لوحة قيادة المدرسة';NAV0=NAV0||$('#nav').innerHTML;const nv=fem(NAV0);if($('#nav').dataset.g!==String(s.gender)){$('#nav').innerHTML=nv;$('#nav').dataset.g=s.gender}$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view()));document.title=(s.school?s.school+' — ':'')+'لوحة قيادة المدرسة';
@@ -1861,3 +1861,46 @@ function renderTicker(){const el=$('#ticker');if(!el)return;const d=riyadhDay();
 (function(){try{renderTicker();window._tkReady=1;const el=$('#ticker');let t;const pause=()=>{el.classList.add('paused');clearTimeout(t);t=setTimeout(()=>el.classList.remove('paused'),5000)};
  el.addEventListener('pointerdown',pause);el.addEventListener('touchstart',pause,{passive:true});el.addEventListener('focusin',()=>el.classList.add('paused'));el.addEventListener('focusout',()=>el.classList.remove('paused'));
  let lastDay=riyadhDay();setInterval(()=>{const d=riyadhDay();if(d!==lastDay){lastDay=d;renderTicker()}},60000);let rw=innerWidth;addEventListener('resize',()=>{if(Math.abs(innerWidth-rw)>40){rw=innerWidth;renderTicker()}})}catch(e){}})();
+
+/* ---------- عداد الأسابيع الدراسية (التقويم المعتمد ١٤٤٨هـ) ---------- */
+/* لتحديث العام القادم: عدّل هذه المصفوفة فقط. التواريخ ميلادية (YYYY-MM-DD) شاملة البداية والنهاية. */
+const SCHOOL_CAL={year:'1448هـ (2026–2027م)',terms:[
+ {name:'الفصل الدراسي الأول',start:'2026-08-23',end:'2027-01-07'},
+ {name:'الفصل الدراسي الثاني',start:'2027-01-17',end:'2027-06-24'}],
+ holidays:[
+ {name:'إجازة اليوم الوطني',from:'2026-09-23',to:'2026-09-24'},
+ {name:'إجازة إضافية',from:'2026-10-25',to:'2026-10-25'},
+ {name:'إجازة الخريف',from:'2026-11-20',to:'2026-11-29'},
+ {name:'إجازة إضافية',from:'2027-01-07',to:'2027-01-07'},
+ {name:'إجازة منتصف العام الدراسي',from:'2027-01-08',to:'2027-01-16'},
+ {name:'إجازة يوم التأسيس',from:'2027-02-21',to:'2027-02-22'},
+ {name:'إجازة عيد الفطر المبارك',from:'2027-02-26',to:'2027-03-13'},
+ {name:'إجازة إضافية',from:'2027-04-11',to:'2027-04-11'},
+ {name:'إجازة عيد الأضحى المبارك',from:'2027-05-07',to:'2027-05-22'},
+ {name:'إجازة نهاية العام الدراسي',from:'2027-06-25',to:'2027-08-21'}]};
+const wkSun=s=>{const d=parseD(s);d.setDate(d.getDate()-d.getDay());return iso(d)};
+const wkHol=s=>SCHOOL_CAL.holidays.find(h=>s>=h.from&&s<=h.to);
+const wkSchoolDay=s=>{const w=parseD(s).getDay();return w<5&&!wkHol(s)};
+/* أسابيع الفصل: كل أسبوع (أحد–خميس) فيه يوم دراسي واحد على الأقل */
+function wkWeeks(t){const a=[];for(let s=wkSun(t.start);s<=t.end;s=addDays(s,7)){let ok=false;for(let i=0;i<5;i++){const d=addDays(s,i);if(d>=t.start&&d<=t.end&&wkSchoolDay(d))ok=true}if(ok)a.push(s)}return a}
+function wkState(now=new Date()){const t=iso(now),T=SCHOOL_CAL.terms;let term=T.find(x=>t>=x.start&&t<=x.end),i=T.indexOf(term);
+ const hol=wkHol(t);const ev=[];SCHOOL_CAL.holidays.forEach(h=>ev.push({n:'بداية '+h.name,d:h.from,h}));T.forEach(x=>{ev.push({n:'نهاية '+x.name,d:addDays(x.end,1),end:1});ev.push({n:'بداية '+x.name,d:x.start})});
+ ev.sort((a,b)=>a.d<b.d?-1:1);const next=hol&&hol.to<SCHOOL_CAL.holidays[SCHOOL_CAL.holidays.length-1].to?{n:'العودة من '+hol.name,d:addDays(hol.to,1)}:ev.find(e=>e.d>t&&!(hol&&e.h===hol));const nextHol=SCHOOL_CAL.holidays.find(h=>h.from>t);
+ const r={t,term,hol,next,nextHol};if(term){const W=wkWeeks(term),sw=wkSun(t);r.N=W.length;let k=W.indexOf(sw);if(k<0)k=W.filter(w=>w<sw).length;else k++;r.k=Math.max(0,Math.min(k,W.length));
+  r.wLeft=W.filter(w=>w>sw).length;let sd=0,sdAll=0,sdDone=0;for(let d=term.start;d<=term.end;d=addDays(d,1)){if(!wkSchoolDay(d))continue;sdAll++;if(d>=t)sd++;if(d<t)sdDone++}r.sdLeft=sd;r.cal=Math.round((parseD(term.end)-parseD(t))/864e5);r.pct=Math.round(sdDone/sdAll*100)}
+ else{r.before=t<T[0].start;r.after=t>T[T.length-1].end;r.between=!r.before&&!r.after}return r}
+function weeksCard(){const s=wkState(),now=new Date();const hj=(()=>{try{return now.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}catch(e){return''}})(),gr=now.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{year:'numeric',month:'long',day:'numeric'});
+ let main='',badge='';if(s.hol){badge=`<span class="wkbadge hol">🌴 إجازة</span>`;main=`<div class="wkbig">${esc(s.hol.name)}</div><div class="wksub">تنتهي ${fmtDate(s.hol.to,true)}</div>`}
+ if(s.term){if(!s.hol)badge=`<span class="wkbadge">📚 أيام دراسة</span>`;main+=`<div class="wkbig">${s.hol?'':`الأسبوع <b>${s.k}</b> من <b>${s.N}</b>`}</div>${s.hol?`<div class="wksub">${esc(s.term.name)} — الأسبوع ${s.k} من ${s.N}</div>`:''}
+  <div class="wkbar" role="progressbar" aria-valuenow="${s.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="نسبة ما مضى من الفصل"><i style="width:${s.pct}%"></i></div>
+  <div class="wkstats"><div><b>${s.pct}%</b><span>مضى من الفصل</span></div><div><b>${s.wLeft}</b><span>أسابيع متبقية</span></div><div><b>${s.sdLeft}</b><span>يوماً دراسياً متبقياً</span></div><div><b>${s.cal}</b><span>يوماً حتى نهاية الفصل</span></div></div>`}
+ else if(s.before){badge=`<span class="wkbadge hol">⏳ قبل بداية العام</span>`;main=`<div class="wkbig">العام الدراسي ${SCHOOL_CAL.year} لم يبدأ بعد</div>`}
+ else if(s.after){badge=`<span class="wkbadge hol">☀️ انتهى العام</span>`;main=`<div class="wkbig">انتهى العام الدراسي ${SCHOOL_CAL.year}</div><div class="wksub">يُرجى تحديث بيانات التقويم للعام الجديد</div>`}
+ else if(!s.hol){badge=`<span class="wkbadge hol">🌴 إجازة</span>`;main=`<div class="wkbig">إجازة بين الفصلين</div>`}
+ const cd=s.next?`<div class="wkcd"><div class="small">⏱️ المتبقي على: <b>${esc(s.next.n)}</b> (${fmtDate(s.next.d,true)})</div><div class="wkcdg" id="wkCd" data-to="${s.next.d}">${['يوم','ساعة','دقيقة','ثانية'].map(u=>`<div><b>--</b><span>${u}</span></div>`).join('')}</div></div>`:'';
+ return `<section class="card wkcard" aria-label="عداد الأسابيع الدراسية"><div class="row"><h3 class="grow" style="margin:0">🗓️ عداد الأسابيع الدراسية</h3>${badge}</div>
+ <div class="wkdate">${esc(hj)} — ${esc(gr)}</div>${s.term?`<div class="wkterm">${esc(s.term.name)} — العام الدراسي ${SCHOOL_CAL.year}</div>`:''}${main}${cd}
+ ${s.nextHol&&!(s.next&&s.next.h===s.nextHol)?`<div class="small wknh">🌴 الإجازة القادمة: <b>${esc(s.nextHol.name)}</b> — ${fmtDate(s.nextHol.from,true)}</div>`:''}
+ <div class="small wknote">وفق التقويم الدراسي المعتمد من وزارة التعليم.</div></section>`}
+let WKT=null;function wkTick(){const el=document.getElementById('wkCd');if(!el){clearInterval(WKT);WKT=null;return}let ms=parseD(el.dataset.to)-new Date();if(ms<=0){render();return}const v=[Math.floor(ms/864e5),Math.floor(ms/36e5)%24,Math.floor(ms/6e4)%60,Math.floor(ms/1e3)%60];el.querySelectorAll('b').forEach((b,i)=>b.textContent=String(v[i]).padStart(i?2:1,'0'))}
+function wkStart(){clearInterval(WKT);if(document.getElementById('wkCd')){wkTick();WKT=setInterval(wkTick,1000)}}
