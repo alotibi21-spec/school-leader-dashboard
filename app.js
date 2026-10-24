@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.21.0';
+const APP_VERSION='1.21.1';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1867,6 +1867,7 @@ function renderTicker(){const el=$('#ticker');if(!el)return;const d=riyadhDay();
 const SCHOOL_CAL={year:'1448هـ (2026–2027م)',terms:[
  {name:'الفصل الدراسي الأول',start:'2026-08-23',end:'2027-01-07'},
  {name:'الفصل الدراسي الثاني',start:'2027-01-17',end:'2027-06-24'}],
+ exams:[{name:'اختبارات نهاية الفترة الدراسية الأولى',from:'2027-01-03',to:'2027-01-06'}],
  holidays:[
  {name:'إجازة اليوم الوطني',from:'2026-09-23',to:'2026-09-24'},
  {name:'إجازة إضافية',from:'2026-10-25',to:'2026-10-25'},
@@ -1887,11 +1888,13 @@ function wkState(now=new Date()){const t=iso(now),T=SCHOOL_CAL.terms;let term=T.
  const hol=wkHol(t);const ev=[];SCHOOL_CAL.holidays.forEach(h=>ev.push({n:'بداية '+h.name,d:h.from,h}));T.forEach(x=>{ev.push({n:'نهاية '+x.name,d:addDays(x.end,1),end:1});ev.push({n:'بداية '+x.name,d:x.start})});
  ev.sort((a,b)=>a.d<b.d?-1:1);const next=hol&&hol.to<SCHOOL_CAL.holidays[SCHOOL_CAL.holidays.length-1].to?{n:'العودة من '+hol.name,d:addDays(hol.to,1)}:ev.find(e=>e.d>t&&!(hol&&e.h===hol));const nextHol=SCHOOL_CAL.holidays.find(h=>h.from>t);
  const r={t,term,hol,next,nextHol};if(term){const W=wkWeeks(term),sw=wkSun(t);r.N=W.length;let k=W.indexOf(sw);if(k<0)k=W.filter(w=>w<sw).length;else k++;r.k=Math.max(0,Math.min(k,W.length));
-  r.wLeft=W.filter(w=>w>sw).length;let sd=0,sdAll=0,sdDone=0;for(let d=term.start;d<=term.end;d=addDays(d,1)){if(!wkSchoolDay(d))continue;sdAll++;if(d>=t)sd++;if(d<t)sdDone++}r.sdLeft=sd;r.cal=Math.round((parseD(term.end)-parseD(t))/864e5);r.pct=Math.round(sdDone/sdAll*100)}
+  const ws=W[r.k-1]||sw;r.ws=ws;r.we=addDays(ws,4);r.exam=(SCHOOL_CAL.exams||[]).find(e=>e.from<=r.we&&e.to>=ws);r.wLeft=W.filter(w=>w>sw).length;let sd=0,sdAll=0,sdDone=0;for(let d=term.start;d<=term.end;d=addDays(d,1)){if(!wkSchoolDay(d))continue;sdAll++;if(d>=t)sd++;if(d<t)sdDone++}r.sdLeft=sd;r.cal=Math.round((parseD(term.end)-parseD(t))/864e5);r.pct=Math.round(sdDone/sdAll*100)}
  else{r.before=t<T[0].start;r.after=t>T[T.length-1].end;r.between=!r.before&&!r.after}return r}
+const WK_ORD=['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر','الحادي عشر','الثاني عشر','الثالث عشر','الرابع عشر','الخامس عشر','السادس عشر','السابع عشر','الثامن عشر','التاسع عشر','العشرون','الحادي والعشرون','الثاني والعشرون','الثالث والعشرون','الرابع والعشرون'];
+const wkHm=s=>{const p=hjParts(s);return String(p.m+'/'+p.d).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d])};
 function weeksCard(){const s=wkState(),now=new Date();const hj=(()=>{try{return now.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}catch(e){return''}})(),gr=now.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{year:'numeric',month:'long',day:'numeric'});
  let main='',badge='';if(s.hol){badge=`<span class="wkbadge hol">🌴 إجازة</span>`;main=`<div class="wkbig">${esc(s.hol.name)}</div><div class="wksub">تنتهي ${fmtDate(s.hol.to,true)}</div>`}
- if(s.term){if(!s.hol)badge=`<span class="wkbadge">📚 أيام دراسة</span>`;main+=`<div class="wkbig">${s.hol?'':`الأسبوع <b>${s.k}</b> من <b>${s.N}</b>`}</div>${s.hol?`<div class="wksub">${esc(s.term.name)} — الأسبوع ${s.k} من ${s.N}</div>`:''}
+ if(s.term){if(!s.hol)badge=`<span class="wkbadge">📚 أيام دراسة</span>`;main+=`${s.k?`<div class="wkrange">الأسبوع ${WK_ORD[s.k-1]||s.k}: <bdi>${wkHm(s.ws)}</bdi> – <bdi>${wkHm(s.we)}</bdi> هـ</div>`:''}${s.exam&&!s.hol?`<div class="wkexam">📝 ${esc(s.exam.name)}</div>`:''}<div class="wkbig">${s.hol?'':`الأسبوع <b>${s.k}</b> من <b>${s.N}</b>`}</div>${s.hol?`<div class="wksub">${esc(s.term.name)} — الأسبوع ${s.k} من ${s.N}</div>`:''}
   <div class="wkbar" role="progressbar" aria-valuenow="${s.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="نسبة ما مضى من الفصل"><i style="width:${s.pct}%"></i></div>
   <div class="wkstats"><div><b>${s.pct}%</b><span>مضى من الفصل</span></div><div><b>${s.wLeft}</b><span>أسابيع متبقية</span></div><div><b>${s.sdLeft}</b><span>يوماً دراسياً متبقياً</span></div><div><b>${s.cal}</b><span>يوماً حتى نهاية الفصل</span></div></div>`}
  else if(s.before){badge=`<span class="wkbadge hol">⏳ قبل بداية العام</span>`;main=`<div class="wkbig">العام الدراسي ${SCHOOL_CAL.year} لم يبدأ بعد</div>`}

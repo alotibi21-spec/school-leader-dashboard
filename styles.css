@@ -376,3 +376,32 @@ footer.credit[hidden]+.copyline{margin-top:0;padding-top:10px;border-top:3px sol
 .wknh{margin-top:10px}.wknote{opacity:.7;margin-top:6px;font-size:.75rem}
 @media(max-width:560px){.wkstats{grid-template-columns:repeat(2,1fr)}.wkbig{font-size:1.4rem}}
 @media print{.wkcard{display:none}}
+.wkrange{display:inline-block;margin-top:6px;background:#ffffff14;border:1px solid #c9a22766;border-radius:10px;padding:2px 10px;font-size:.9rem;color:#f1e3b0}.wkexam{display:inline-block;margin:8px 0 0;background:#b45309;color:#fff;border-radius:999px;padding:3px 12px;font-weight:800;font-size:.88rem}
+/* ===== v1.21.1 طبقة اللمعان (شاشة فقط) ===== */
+@media screen{
+body{background:radial-gradient(1200px 600px at 85% -10%,color-mix(in srgb,var(--navy2) 70%,transparent),transparent 60%),linear-gradient(160deg,color-mix(in srgb,var(--navy) 45%,#000) 0%,var(--navy) 45%,color-mix(in srgb,var(--navy) 30%,#000) 100%) fixed;background-color:color-mix(in srgb,var(--navy) 40%,#000)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.55;background-image:radial-gradient(1.5px 1.5px at 12% 18%,#f6e7b0,transparent),radial-gradient(1px 1px at 34% 72%,#fff,transparent),radial-gradient(1.5px 1.5px at 58% 30%,#e9d48a,transparent),radial-gradient(1px 1px at 76% 84%,#fff,transparent),radial-gradient(2px 2px at 90% 44%,#f6e7b0,transparent),radial-gradient(1px 1px at 22% 52%,#fff,transparent),radial-gradient(1.5px 1.5px at 66% 62%,#e9d48a,transparent);background-size:520px 520px;animation:sldTw 9s ease-in-out infinite alternate}
+@keyframes sldTw{0%{opacity:.25;transform:translateY(0)}100%{opacity:.7;transform:translateY(-12px)}}
+main,footer{position:relative;z-index:1}.top{z-index:20}
+.top{background:linear-gradient(90deg,#06142a,var(--navy) 55%,#06142a);border-bottom:2px solid transparent;border-image:linear-gradient(90deg,transparent,var(--gold2),var(--gold),var(--gold2),transparent) 1;box-shadow:0 6px 24px -8px #000a}
+.side{background:color-mix(in srgb,var(--card) 82%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-left:1px solid color-mix(in srgb,var(--gold) 30%,transparent)}
+.side a{transition:background .2s,transform .2s}.side a:hover{transform:translateX(-3px)}
+.side a.on{background:linear-gradient(135deg,var(--navy),var(--navy2));box-shadow:inset -4px 0 0 var(--gold),0 4px 14px -6px color-mix(in srgb,var(--gold) 60%,transparent)}
+main>h2,main>.head h2,main>.head .muted,main>.head .small,main>div>.head h2{color:#fff}
+main>.head h2,main>h2,.head>div>h2{background:linear-gradient(100deg,var(--gold) 0%,#fff6d0 22%,var(--gold2) 38%,var(--gold) 60%,#fff3c4 80%,var(--gold) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:sldSheen 6s linear infinite}
+.head .muted,.head .small{color:#d6deea!important}
+@keyframes sldSheen{to{background-position:-250% 0}}
+.card,.kpi,.comcard,.tcard{background:color-mix(in srgb,var(--card) 90%,transparent);backdrop-filter:blur(12px) saturate(1.2);-webkit-backdrop-filter:blur(12px) saturate(1.2);border:1px solid color-mix(in srgb,var(--gold) 28%,transparent);box-shadow:0 10px 30px -14px #000c,0 0 0 1px #ffffff10 inset,0 0 18px -10px color-mix(in srgb,var(--gold) 70%,transparent);position:relative;overflow:hidden;animation:sldIn .45s ease-out both}
+.card::after,.kpi::after{content:"";position:absolute;top:0;bottom:0;width:40%;inset-inline-start:-60%;background:linear-gradient(105deg,transparent,#ffffff40,transparent);transform:skewX(-18deg);pointer-events:none;transition:none;opacity:0}
+.card:hover::after,.kpi:hover::after{opacity:1;inset-inline-start:130%;transition:inset-inline-start .9s ease,opacity .2s}
+.kpi:hover,.card:hover{border-color:color-mix(in srgb,var(--gold) 60%,transparent)}
+main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s}main>*:nth-child(4){animation-delay:.15s}
+@keyframes sldIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.btn{transition:transform .15s,box-shadow .2s;position:relative;overflow:hidden}.btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px -6px #000a}
+.btn.gold{background:linear-gradient(135deg,#a8841c,var(--gold) 30%,#f5e3a0 50%,var(--gold) 70%,#a8841c);background-size:220% 100%;animation:sldSheen 5s linear infinite;color:var(--navy);box-shadow:0 0 12px -4px var(--gold)}
+.btn.ghost{background:color-mix(in srgb,var(--card) 80%,transparent)}
+.wkcard{background:linear-gradient(145deg,color-mix(in srgb,var(--navy) 85%,transparent),#0a1c36e6)}
+.wkcard h3{background:linear-gradient(100deg,var(--gold),#fff6d0,var(--gold2),var(--gold));background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sldSheen 6s linear infinite}
+}
+@media screen and (max-width:700px){body::before{background-size:360px 360px}.card,.kpi{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
