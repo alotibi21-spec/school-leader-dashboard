@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.22.1';
+const APP_VERSION='1.22.2';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1916,7 +1916,8 @@ function weeksCard(){const s=wkState(),now=new Date();const hj=(()=>{try{return 
  ${s.nextHol&&!(s.next&&s.next.h===s.nextHol)?`<div class="small wknh">🌴 الإجازة القادمة: <b>${esc(s.nextHol.name)}</b> — ${fmtDate(s.nextHol.from,true)}</div>`:''}
  <div class="small wknote">وفق التقويم الدراسي المعتمد من وزارة التعليم.</div></section>`}
 let WKT=null;function wkTick(){const el=document.getElementById('wkCd');if(!el){clearInterval(WKT);WKT=null;return}let ms=parseD(el.dataset.to)-new Date();if(ms<=0){render();return}const v=[Math.floor(ms/864e5),Math.floor(ms/36e5)%24,Math.floor(ms/6e4)%60,Math.floor(ms/1e3)%60];el.querySelectorAll('b').forEach((b,i)=>b.textContent=String(v[i]).padStart(i?2:1,'0'))}
-function wkStart(){const b=document.querySelector('[data-wkcf]');if(b)b.onclick=()=>sldConfetti(true);try{wkCelebrate()}catch(e){}clearInterval(WKT);if(document.getElementById('wkCd')){wkTick();WKT=setInterval(wkTick,1000)}}
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-wkcf]'))sldConfetti(true)});
+function wkStart(){try{wkCelebrate()}catch(e){}clearInterval(WKT);if(document.getElementById('wkCd')){wkTick();WKT=setInterval(wkTick,1000)}}
 
 /* ---------- مقاييس دائرية للفصل ---------- */
 function wkGauge(l,p,txt,sub){const r=40,C=2*Math.PI*r,v=Math.max(0,Math.min(100,p||0));return `<div class="wkg"><svg viewBox="0 0 100 100" role="img" aria-label="${esc(l)} ${esc(txt)}"><defs><linearGradient id="wkGold${l.length}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset=".35" stop-color="#e9c860"/><stop offset=".65" stop-color="#b88a1e"/><stop offset="1" stop-color="#f7e39a"/></linearGradient></defs><circle cx="50" cy="50" r="${r}" class="wkg-bg"/><circle cx="50" cy="50" r="${r}" class="wkg-fg" stroke="url(#wkGold${l.length})" style="--c:${C.toFixed(1)};--o:${(C*(1-v/100)).toFixed(1)}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-v/100)).toFixed(1)}" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" class="wkg-t">${esc(txt)}</text></svg><div class="wkg-l">${esc(l)}</div>${sub?`<div class="wkg-s">${esc(sub)}</div>`:''}</div>`}
