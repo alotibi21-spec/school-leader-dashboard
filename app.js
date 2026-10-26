@@ -4,7 +4,7 @@
 const WA_SVG='<svg class="waic" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M16 2.9A13 13 0 0 0 4.8 22.6L3 29l6.6-1.7A13 13 0 1 0 16 2.9z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2l-1.2 1.5c-.2.3-.4.3-.8.1a10.6 10.6 0 0 1-5.3-4.6c-.4-.7.4-.6 1.1-2 .1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.7 4.2 6.6 5.9 2.5 1.1 3.5 1.2 4.7 1 .8-.1 2.3-.9 2.6-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"/></svg>',CONTACT='للتواصل: 0504153442';
 const CREDIT='فكرة وتصميم: عضو الفريق التنفيذي بمحافظة الدوادمي - قطاع السر - عبدالله خالد العتيبي';
 const COPYRIGHT='© ١٤٤٨هـ عبدالله خالد العتيبي – جميع الحقوق محفوظة، يُمنع النسخ أو إعادة النشر دون إذن';
-const APP_VERSION='1.23.0';
+const APP_VERSION='1.23.1';
 const KEY='sld-data-v1';
 const DOMAINS=['الإدارة المدرسية','التعليم والتعلم','نواتج التعلم','البيئة المدرسية'];
 const PERIODS=['يومي','أسبوعي','شهري','فصلي','نهاية العام'];
@@ -1883,6 +1883,7 @@ setTimeout(checkReminders,1500);setInterval(checkReminders,30000);
 
 /* ---------- Ticker (data-driven): {t:text, url?:link, until?:'YYYY-MM-DD' last day shown, Asia/Riyadh} ---------- */
 const TICKER=[
+ {t:'رابط حصر بيانات الطلبة من الفئات ذات الاحتياج للرعاية والدعم في موعد أقصاه يوم الخميس الموافق 18-5-1448هـ',url:'https://forms.cloud.microsoft/r/D9kLwfMbZQ?origin=lprLink',until:'2026-10-29'},
  {t:'⏰ تثبيت الغياب يوميًا قبل الساعة ٨ ص'},
  {qiyam:1,day21:1},
  {t:'📝 رابط تقرير تنفيذ برنامجي تعزيز السلوك الإيجابي «قيمة الانتماء للوطن» وتعزيز الهوية الوطنية — آخر موعد يوم الخميس ١١-٥-١٤٤٨هـ',url:'https://forms.cloud.microsoft/pages/responsepage.aspx?id=UYPKa9MBUkKF6r2o-NI1vTa68RRDvD1MvENeG7mh5SZUQVdQOVBVUFNLRzVTTUdWNzQxMk1COUo2VC4u&origin=QRCode&qrcodeorigin=presentation&route=shorturl',until:'2026-10-22'},
